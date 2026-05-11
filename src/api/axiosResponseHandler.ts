@@ -15,6 +15,10 @@ function isUnauthorizedAxiosError(error: AxiosError): boolean {
     if (code === 401 || code === '401') {
       return true
     }
+    /** 网关 / 业务服务 ApiResult：族为 401 的完整字符串码（如 GWAY4014002） */
+    if (typeof code === 'string' && code.length >= 7 && code.slice(4, 7) === '401') {
+      return true
+    }
   }
   return false
 }

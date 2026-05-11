@@ -1,6 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { STATIC_SIDEBAR_MENU_TREE } from '../config/staticSidebarMenus'
+import { clearRegisteredMenuRoutes, registerStaticSidebarMenuBundleOnce } from './dynamicMenuRoutes'
 
+/**
+ * 主布局 name 固定为 AdminShell，供 {@link ./dynamicMenuRoutes} 动态 addRoute。
+ * 站内页签路由优先由菜单管理 + registerRoutesFromMenuTree 注册；本处仅保留登录、首页、嵌入承载页。
+ */
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -12,6 +18,7 @@ const router = createRouter({
     },
     {
       path: '/',
+      name: 'AdminShell',
       component: () => import('../layout/AdminLayout.vue'),
       redirect: '/dashboard',
       children: [
@@ -22,22 +29,10 @@ const router = createRouter({
           meta: { title: '首页', icon: 'House' },
         },
         {
-          path: 'system/user',
-          name: 'SystemUser',
-          component: () => import('../views/system/UserView.vue'),
-          meta: { title: '用户管理', icon: 'User' },
-        },
-        {
-          path: 'system/role',
-          name: 'SystemRole',
-          component: () => import('../views/system/RoleView.vue'),
-          meta: { title: '角色管理', icon: 'Lock' },
-        },
-        {
-          path: 'system/menu',
-          name: 'SystemMenu',
-          component: () => import('../views/system/MenuView.vue'),
-          meta: { title: '菜单管理', icon: 'Menu' },
+          path: 'frame/embed',
+          name: 'FrameEmbed',
+          component: () => import('../views/frame/IframeShellView.vue'),
+          meta: { title: '嵌入页' },
         },
       ],
     },
@@ -47,6 +42,9 @@ const router = createRouter({
 router.beforeEach((to, _from, next) => {
   const authStore = useAuthStore()
   if (to.path === '/login') {
+    if (!authStore.isAuthenticated) {
+      clearRegisteredMenuRoutes(router)
+    }
     if (authStore.isAuthenticated) {
       next('/')
       return
@@ -56,6 +54,12 @@ router.beforeEach((to, _from, next) => {
   }
   if (!authStore.isAuthenticated) {
     next('/login')
+    return
+  }
+  const justRegistered = registerStaticSidebarMenuBundleOnce(router, STATIC_SIDEBAR_MENU_TREE)
+  // 动态 addRoute 后必须重走当前 location，否则新窗口直达 /system/xxx 等 matched 仍为空
+  if (justRegistered) {
+    next({ ...to, replace: true })
     return
   }
   next()
