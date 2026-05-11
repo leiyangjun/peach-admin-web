@@ -12,9 +12,12 @@
     "@element-plus/icons-vue": "^2.3.2",
     "axios": "^1.15.1",
     "element-plus": "^2.13.7",
+    "jsencrypt": "^3.5.4",
+    "json-bigint": "^1.0.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.32",
-    "vue-router": "^4.6.3"
+    "vue-router": "^4.6.3",
+    "vue3-slide-verify": "^1.1.8"
   },
   "devDependencies": {
     "@types/node": "^24.12.2",

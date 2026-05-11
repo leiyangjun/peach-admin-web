@@ -29,7 +29,7 @@ const {
   <div class="user-page">
     <el-card shadow="never" class="toolbar-card">
       <el-form :inline="true" @submit.prevent>
-        <el-form-item label="关键字">
+        <el-form-item :for="''" label="关键字">
           <el-input
             v-model="keyword"
             clearable
@@ -38,11 +38,11 @@ const {
             @keyup.enter="onSearch"
           />
         </el-form-item>
-        <el-form-item>
+        <el-form-item :for="''">
           <el-button type="primary" @click="onSearch">查询</el-button>
           <el-button @click="onReset">重置</el-button>
         </el-form-item>
-        <el-form-item class="right-btn">
+        <el-form-item :for="''" class="right-btn">
           <el-button type="success" @click="openCreate">新增用户</el-button>
         </el-form-item>
       </el-form>
@@ -85,31 +85,31 @@ const {
           <el-form :model="userForm" :rules="rules" label-width="90px">
             <el-row :gutter="16">
               <el-col :span="12">
-                <el-form-item label="登录账号" prop="username">
+                <el-form-item :for="''" label="登录账号" prop="username">
                   <el-input v-model="userForm.username" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="用户昵称" prop="nickname">
+                <el-form-item :for="''" label="用户昵称" prop="nickname">
                   <el-input v-model="userForm.nickname" />
                 </el-form-item>
               </el-col>
             </el-row>
             <el-row :gutter="16">
               <el-col :span="12">
-                <el-form-item label="手机号" prop="phone">
+                <el-form-item :for="''" label="手机号" prop="phone">
                   <el-input v-model="userForm.phone" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="邮箱">
+                <el-form-item :for="''" label="邮箱">
                   <el-input v-model="userForm.email" />
                 </el-form-item>
               </el-col>
             </el-row>
             <el-row :gutter="16">
               <el-col :span="12">
-                <el-form-item label="角色" prop="role">
+                <el-form-item :for="''" label="角色" prop="role">
                   <el-select v-model="userForm.role" style="width: 100%">
                     <el-option label="超级管理员" value="超级管理员" />
                     <el-option label="运维" value="运维" />
@@ -119,7 +119,7 @@ const {
                 </el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="状态">
+                <el-form-item :for="''" label="状态">
                   <el-switch v-model="userForm.status" />
                 </el-form-item>
               </el-col>
@@ -129,10 +129,10 @@ const {
 
         <el-tab-pane label="安全设置" name="security">
           <el-form :model="userForm" label-width="90px">
-            <el-form-item label="初始密码" prop="password">
+            <el-form-item :for="''" label="初始密码" prop="password">
               <el-input v-model="userForm.password" type="password" show-password />
             </el-form-item>
-            <el-form-item label="确认密码">
+            <el-form-item :for="''" label="确认密码">
               <el-input v-model="userForm.confirmPassword" type="password" show-password />
             </el-form-item>
           </el-form>

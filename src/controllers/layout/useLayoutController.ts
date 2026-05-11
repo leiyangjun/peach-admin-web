@@ -6,7 +6,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormRules } from 'element-plus'
-import { House, User, Lock, Expand, Fold } from '@element-plus/icons-vue'
+import { House, User, Lock, Menu, Expand, Fold } from '@element-plus/icons-vue'
 import { useAuthStore } from '../../stores/auth'
 import { useAppStore } from '../../stores/app'
 import type { MenuItem } from '../../models/menu'
@@ -22,10 +22,24 @@ export function useLayoutController() {
     { index: '/dashboard', title: '首页', icon: House },
     { index: '/system/user', title: '用户管理', icon: User },
     { index: '/system/role', title: '角色管理', icon: Lock },
+    { index: '/system/menu', title: '菜单管理', icon: Menu },
   ]
 
   const activeMenu = computed(() => route.path)
   const activeTab = computed(() => route.path)
+
+  /** 顶部面包屑：首页 + 当前页（与参考后台「顶部导航」一致，便于定位） */
+  const breadcrumbs = computed(() => {
+    const curPath = route.path
+    const curTitle = String(route.meta.title || '页面')
+    if (curPath === '/dashboard') {
+      return [{ path: '/dashboard', title: '首页', current: true as const }]
+    }
+    return [
+      { path: '/dashboard', title: '首页', current: false as const },
+      { path: curPath, title: curTitle, current: true as const },
+    ]
+  })
   const collapseIcon = computed(() => (appStore.sidebarCollapsed ? Expand : Fold))
   const profileDialogVisible = ref(false)
   const passwordDialogVisible = ref(false)
@@ -124,6 +138,7 @@ export function useLayoutController() {
     menuList,
     activeMenu,
     activeTab,
+    breadcrumbs,
     collapseIcon,
     profileDialogVisible,
     passwordDialogVisible,
