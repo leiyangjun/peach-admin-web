@@ -74,7 +74,6 @@ export function useMenuController() {
 
   const formModel = ref<MenuMgmtVO>(emptyForm(0))
 
-  /** 仅拉取树数据，不改变当前选中（保存成功后刷新列表等场景） */
   const loadTree = async () => {
     loading.value = true
     try {

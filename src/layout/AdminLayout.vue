@@ -5,11 +5,12 @@
  */
 
 import { useLayoutController } from '../controllers/layout/useLayoutController'
+import DynamicSidebarMenu from '../components/layout/DynamicSidebarMenu.vue'
 
 const {
   authStore,
   appStore,
-  menuList,
+  menuTree,
   activeMenu,
   activeTab,
   breadcrumbs,
@@ -25,6 +26,7 @@ const {
   submitPassword,
   handleTabChange,
   handleTabRemove,
+  handleMenuSelect,
 } = useLayoutController()
 </script>
 
@@ -38,11 +40,15 @@ const {
           <div class="sub-title">管理后台</div>
         </div>
       </div>
-      <el-menu router :default-active="activeMenu" class="menu" :collapse="appStore.sidebarCollapsed">
-        <el-menu-item v-for="item in menuList" :key="item.index" :index="item.index">
-          <el-icon><component :is="item.icon" /></el-icon>
-          <template #title>{{ item.title }}</template>
-        </el-menu-item>
+      <el-menu
+        :default-active="activeMenu"
+        class="menu"
+        :collapse="appStore.sidebarCollapsed"
+        :router="false"
+        @select="handleMenuSelect"
+      >
+        <DynamicSidebarMenu v-if="menuTree.length" :nodes="menuTree" />
+        <el-empty v-else class="menu-empty" description="加载菜单中…" :image-size="48" />
       </el-menu>
     </aside>
 
@@ -224,6 +230,11 @@ const {
   color: #fff;
   background: rgb(255 255 255 / 24%);
   font-weight: 600;
+}
+
+.menu-empty {
+  padding: 16px 8px;
+  opacity: 0.85;
 }
 
 .main-wrapper {

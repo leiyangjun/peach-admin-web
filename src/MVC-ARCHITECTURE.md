@@ -22,7 +22,7 @@
   - `controllers/system/useUserController.ts`
   - `views/system/UserView.vue`
 - 主布局：
-  - `models/menu.ts`
+  - `models/menuMgmt.ts`（菜单管理 VO）
   - `controllers/layout/useLayoutController.ts`
   - `layout/AdminLayout.vue`
 

@@ -1,37 +1,60 @@
 /**
- * 主布局控制器（Controller）：菜单、页签、登出等交互。
+ * 主布局控制器（Controller）：侧栏菜单（当前为写死配置）、页签、登出等交互。
  * 作者：leiyangjun
  */
 
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormRules } from 'element-plus'
-import { House, User, Lock, Menu, Expand, Fold } from '@element-plus/icons-vue'
+import { Expand, Fold } from '@element-plus/icons-vue'
 import { useAuthStore } from '../../stores/auth'
 import { useAppStore } from '../../stores/app'
-import type { MenuItem } from '../../models/menu'
+import { STATIC_SIDEBAR_MENU_TREE } from '../../config/staticSidebarMenus'
 import type { PasswordFormModel, ProfileFormModel } from '../../models/auth'
+import { openExternalPage, openInternalRouteInNewWindow } from '../../utils/navigation'
+import { parseMenuRoutePath } from '../../utils/menuRoutePath'
+import { findMenuTitleByRoutePath } from '../../utils/menuTreeWalk'
+import { clearRegisteredMenuRoutes } from '../../router/dynamicMenuRoutes'
+
+const FRAME_EMBED_PATH = '/frame/embed'
 
 export function useLayoutController() {
   const route = useRoute()
   const router = useRouter()
   const authStore = useAuthStore()
   const appStore = useAppStore()
+  /** 侧栏数据源：写死树，不依赖登录后菜单接口 */
+  const menuTree = STATIC_SIDEBAR_MENU_TREE
 
-  const menuList: MenuItem[] = [
-    { index: '/dashboard', title: '首页', icon: House },
-    { index: '/system/user', title: '用户管理', icon: User },
-    { index: '/system/role', title: '角色管理', icon: Lock },
-    { index: '/system/menu', title: '菜单管理', icon: Menu },
-  ]
+  const activeMenu = computed(() => {
+    if (route.path === '/frame/embed') {
+      const rk = route.query.rk
+      if (typeof rk === 'string' && rk.trim()) {
+        try {
+          return decodeURIComponent(rk.trim())
+        } catch {
+          return rk.trim()
+        }
+      }
+    }
+    return route.path
+  })
 
-  const activeMenu = computed(() => route.path)
-  const activeTab = computed(() => route.path)
+  const activeTab = computed(() => route.fullPath)
 
-  /** 顶部面包屑：首页 + 当前页（与参考后台「顶部导航」一致，便于定位） */
   const breadcrumbs = computed(() => {
     const curPath = route.path
-    const curTitle = String(route.meta.title || '页面')
+    let curTitle = String(route.meta.title || '页面')
+    if (curPath === '/frame/embed') {
+      const t = route.query.t
+      if (typeof t === 'string' && t.trim()) {
+        try {
+          curTitle = decodeURIComponent(t.trim())
+        } catch {
+          curTitle = t.trim()
+        }
+      }
+    }
     if (curPath === '/dashboard') {
       return [{ path: '/dashboard', title: '首页', current: true as const }]
     }
@@ -40,6 +63,7 @@ export function useLayoutController() {
       { path: curPath, title: curTitle, current: true as const },
     ]
   })
+
   const collapseIcon = computed(() => (appStore.sidebarCollapsed ? Expand : Fold))
   const profileDialogVisible = ref(false)
   const passwordDialogVisible = ref(false)
@@ -69,14 +93,27 @@ export function useLayoutController() {
   watch(
     () => route.fullPath,
     () => {
-      if (route.path !== '/login') {
-        appStore.addTab(route.path, String(route.meta.title || '页面'))
+      if (route.path === '/login') {
+        return
       }
+      let title = String(route.meta.title || '页面')
+      if (route.path === '/frame/embed') {
+        const t = route.query.t
+        if (typeof t === 'string' && t.trim()) {
+          try {
+            title = decodeURIComponent(t.trim())
+          } catch {
+            title = t.trim()
+          }
+        }
+      }
+      appStore.addTab(route.fullPath, title)
     },
     { immediate: true },
   )
 
   const handleLogout = () => {
+    clearRegisteredMenuRoutes(router)
     authStore.logout()
     ElMessage.success('已退出登录')
     router.replace('/login')
@@ -116,26 +153,57 @@ export function useLayoutController() {
   }
 
   const handleTabChange = (name: string | number) => {
-    router.push(String(name))
+    void router.push(String(name))
+  }
+
+  /** 侧栏 index 为菜单表 route_path 原文（含 frame://、openwindow:// 协议） */
+  const handleMenuSelect = (index: string) => {
+    const parsed = parseMenuRoutePath(index)
+    if (!parsed) {
+      return
+    }
+    const title = findMenuTitleByRoutePath(menuTree, index) ?? '页面'
+    if (parsed.kind === 'internal') {
+      void router.push(parsed.path)
+      return
+    }
+    if (parsed.kind === 'iframe') {
+      void router.push({
+        path: FRAME_EMBED_PATH,
+        query: {
+          u: encodeURIComponent(parsed.url),
+          rk: encodeURIComponent(index),
+          t: encodeURIComponent(title),
+        },
+      })
+      return
+    }
+    if (parsed.kind === 'openExternal') {
+      openExternalPage(parsed.url)
+      return
+    }
+    if (parsed.kind === 'openInternal') {
+      openInternalRouteInNewWindow(router, parsed.path)
+    }
   }
 
   const handleTabRemove = (targetName: string | number) => {
     const targetPath = String(targetName)
-    if (targetPath === '/dashboard') {
+    if (targetPath === '/dashboard' || targetPath.startsWith('/dashboard?')) {
       return
     }
-    const currentPath = route.path
+    const currentFull = route.fullPath
     appStore.removeTab(targetPath)
-    if (currentPath === targetPath) {
+    if (currentFull === targetPath) {
       const fallback = appStore.tabs[appStore.tabs.length - 1]?.path || '/dashboard'
-      router.push(fallback)
+      void router.push(fallback)
     }
   }
 
   return {
     authStore,
     appStore,
-    menuList,
+    menuTree,
     activeMenu,
     activeTab,
     breadcrumbs,
@@ -152,5 +220,6 @@ export function useLayoutController() {
     submitPassword,
     handleTabChange,
     handleTabRemove,
+    handleMenuSelect,
   }
 }

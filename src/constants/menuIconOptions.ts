@@ -1,6 +1,5 @@
 /**
- * 菜单图标：与侧边栏 {@link useLayoutController} 使用的 Element Plus Icons 一致，
- * 数据库存组件名（PascalCase），与动态菜单渲染时 `resolveComponent` 一致。
+ * 菜单图标：数据库存组件名（PascalCase），与动态侧栏 {@link resolveMenuIconComponent} 一致。
  */
 
 import type { Component } from 'vue'
