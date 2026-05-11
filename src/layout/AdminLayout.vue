@@ -12,6 +12,7 @@ const {
   menuList,
   activeMenu,
   activeTab,
+  breadcrumbs,
   collapseIcon,
   profileDialogVisible,
   passwordDialogVisible,
@@ -46,49 +47,56 @@ const {
     </aside>
 
     <section class="main-wrapper">
-      <header class="topbar">
-        <div class="left">
-          <el-button text class="collapse-btn" @click="appStore.toggleSidebar">
-            <el-icon size="18">
-              <component :is="collapseIcon" />
-            </el-icon>
-          </el-button>
-          <span>欢迎回来，{{ authStore.user?.nickname ?? '管理员' }}</span>
+      <!-- 参考经典后台：首行面包屑 + 用户区；次行全宽「页面选项卡」便于多任务切换 -->
+      <header class="layout-header">
+        <div class="header-toolbar">
+          <div class="toolbar-left">
+            <el-button text class="collapse-btn" @click="appStore.toggleSidebar">
+              <el-icon size="18">
+                <component :is="collapseIcon" />
+              </el-icon>
+            </el-button>
+            <el-breadcrumb separator="/" class="layout-breadcrumb">
+              <el-breadcrumb-item v-for="(bc, idx) in breadcrumbs" :key="`${bc.path}-${idx}`">
+                <RouterLink v-if="!bc.current" :to="bc.path" class="breadcrumb-link">{{ bc.title }}</RouterLink>
+                <span v-else class="breadcrumb-current">{{ bc.title }}</span>
+              </el-breadcrumb-item>
+            </el-breadcrumb>
+          </div>
+          <div class="toolbar-right">
+            <el-dropdown trigger="click" @command="handleUserAction">
+              <div class="user-entry">
+                <el-avatar :size="32" class="avatar">{{ (authStore.user?.nickname || '管').slice(0, 1) }}</el-avatar>
+                <span class="name">{{ authStore.user?.nickname ?? '管理员' }}</span>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="profile">个人信息</el-dropdown-item>
+                  <el-dropdown-item command="password">修改密码</el-dropdown-item>
+                  <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </div>
-        <div class="right">
-          <el-dropdown trigger="click" @command="handleUserAction">
-            <div class="user-entry">
-              <el-avatar :size="32" class="avatar">{{ (authStore.user?.nickname || '管').slice(0, 1) }}</el-avatar>
-              <span class="name">{{ authStore.user?.nickname ?? '管理员' }}</span>
-            </div>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="profile">个人信息</el-dropdown-item>
-                <el-dropdown-item command="password">修改密码</el-dropdown-item>
-                <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+
+        <div class="header-tabs-scroll">
+          <el-tabs
+            :model-value="activeTab"
+            class="route-tabs route-tabs--underline"
+            @tab-change="handleTabChange"
+            @tab-remove="handleTabRemove"
+          >
+            <el-tab-pane
+              v-for="tab in appStore.tabs"
+              :key="tab.path"
+              :label="tab.title"
+              :name="tab.path"
+              :closable="tab.closable"
+            />
+          </el-tabs>
         </div>
       </header>
-
-      <div class="tabs-wrap">
-        <el-tabs
-          :model-value="activeTab"
-          type="card"
-          class="route-tabs"
-          @tab-change="handleTabChange"
-          @tab-remove="handleTabRemove"
-        >
-          <el-tab-pane
-            v-for="tab in appStore.tabs"
-            :key="tab.path"
-            :label="tab.title"
-            :name="tab.path"
-            :closable="tab.closable"
-          />
-        </el-tabs>
-      </div>
 
       <main class="content">
         <RouterView />
@@ -97,16 +105,16 @@ const {
 
     <el-dialog v-model="profileDialogVisible" title="个人信息" width="520px">
       <el-form :model="profileForm" :rules="profileRules" label-width="90px">
-        <el-form-item label="账号">
+        <el-form-item :for="''" label="账号">
           <el-input v-model="profileForm.username" disabled />
         </el-form-item>
-        <el-form-item label="昵称" prop="nickname">
+        <el-form-item :for="''" label="昵称" prop="nickname">
           <el-input v-model="profileForm.nickname" />
         </el-form-item>
-        <el-form-item label="手机号" prop="phone">
+        <el-form-item :for="''" label="手机号" prop="phone">
           <el-input v-model="profileForm.phone" />
         </el-form-item>
-        <el-form-item label="邮箱" prop="email">
+        <el-form-item :for="''" label="邮箱" prop="email">
           <el-input v-model="profileForm.email" />
         </el-form-item>
       </el-form>
@@ -124,13 +132,13 @@ const {
         class="mb12"
       />
       <el-form :model="passwordForm" :rules="passwordRules" label-width="90px">
-        <el-form-item label="旧密码" prop="oldPassword">
+        <el-form-item :for="''" label="旧密码" prop="oldPassword">
           <el-input v-model="passwordForm.oldPassword" type="password" show-password />
         </el-form-item>
-        <el-form-item label="新密码" prop="newPassword">
+        <el-form-item :for="''" label="新密码" prop="newPassword">
           <el-input v-model="passwordForm.newPassword" type="password" show-password />
         </el-form-item>
-        <el-form-item label="确认密码" prop="confirmPassword">
+        <el-form-item :for="''" label="确认密码" prop="confirmPassword">
           <el-input v-model="passwordForm.confirmPassword" type="password" show-password />
         </el-form-item>
       </el-form>
@@ -221,52 +229,150 @@ const {
 .main-wrapper {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #f0f2f5;
 }
 
-.topbar {
-  height: 62px;
-  background: rgb(255 255 255 / 92%);
-  backdrop-filter: blur(4px);
-  border-bottom: 1px solid #e7edf8;
+.layout-header {
+  flex-shrink: 0;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(0 21 41 / 8%);
+  z-index: 2;
+}
+
+.header-toolbar {
+  height: 52px;
+  padding: 0 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  gap: 12px;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.left {
-  color: #1f2d5a;
-  font-weight: 600;
+.toolbar-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.layout-breadcrumb {
+  font-size: 14px;
+  min-width: 0;
+}
+
+.layout-breadcrumb :deep(.el-breadcrumb__inner) {
+  font-weight: 500;
+}
+
+.breadcrumb-link {
+  color: #595959;
+  text-decoration: none;
+}
+
+.breadcrumb-link:hover {
+  color: var(--el-color-primary);
+}
+
+.breadcrumb-current {
+  color: #262626;
+  font-weight: 600;
 }
 
 .collapse-btn {
-  margin-right: 4px;
+  flex-shrink: 0;
 }
 
-.tabs-wrap {
+.header-tabs-scroll {
+  padding: 0 12px;
   background: #fff;
-  border-bottom: 1px solid #e7edf8;
-  padding: 8px 14px 0;
+  border-bottom: 1px solid #f0f0f0;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
-.route-tabs :deep(.el-tabs__header) {
+.header-tabs-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.header-tabs-scroll::-webkit-scrollbar-thumb {
+  background: rgb(0 0 0 / 15%);
+  border-radius: 2px;
+}
+
+.route-tabs {
+  min-width: min-content;
+}
+
+/** 顶栏页签：白底 + 底部指示条，避免卡片式「一整块白底」显得笨重 */
+.route-tabs--underline :deep(.el-tabs__header) {
   margin-bottom: 0;
 }
 
-.route-tabs :deep(.el-tabs__item) {
-  border-radius: 8px 8px 0 0;
+.route-tabs--underline :deep(.el-tabs__nav-wrap::after) {
+  height: 1px;
+  background-color: #f0f0f0;
+}
+
+.route-tabs--underline :deep(.el-tabs__nav) {
+  border: none;
+}
+
+.route-tabs--underline :deep(.el-tabs__item) {
+  margin-right: 4px;
+  padding: 0 16px;
+  height: 40px;
+  line-height: 40px;
+  font-size: 13px;
+  color: #595959;
+  border: none !important;
+  transition: color 0.2s ease;
+}
+
+.route-tabs--underline :deep(.el-tabs__item:hover) {
+  color: var(--el-color-primary);
+}
+
+.route-tabs--underline :deep(.el-tabs__item.is-active) {
+  color: var(--el-color-primary);
+  font-weight: 600;
+}
+
+.route-tabs--underline :deep(.el-tabs__active-bar) {
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background-color: var(--el-color-primary);
+}
+
+.route-tabs--underline :deep(.is-icon-close) {
+  margin-left: 4px;
+  vertical-align: middle;
 }
 
 .content {
-  padding: 18px;
+  flex: 1;
+  min-height: 0;
+  padding: 8px 10px 10px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
 }
 
-.right {
-  display: flex;
-  align-items: center;
+/** 使页面根节点（如菜单管理）可通过 flex 链铺满内容区剩余高度 */
+.content > * {
+  flex: 1;
+  min-height: 0;
 }
 
 .user-entry {

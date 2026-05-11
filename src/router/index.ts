@@ -1,4 +1,4 @@
-﻿import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const router = createRouter({
@@ -32,6 +32,12 @@ const router = createRouter({
           name: 'SystemRole',
           component: () => import('../views/system/RoleView.vue'),
           meta: { title: '角色管理', icon: 'Lock' },
+        },
+        {
+          path: 'system/menu',
+          name: 'SystemMenu',
+          component: () => import('../views/system/MenuView.vue'),
+          meta: { title: '菜单管理', icon: 'Menu' },
         },
       ],
     },
