@@ -1,157 +1,294 @@
 /**
- * 用户管理控制器（Controller）：搜索、分页、增删改状态、弹窗与校验。
+ * 用户管理：详情 / 新增 / 编辑共用一个对话框；分页、有效标记、系统用户重置密码。
  * 作者：leiyangjun
  */
 
-import { computed, reactive, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox, type FormRules } from 'element-plus'
-import type { UserFormModel, UserRow } from '../../models/user'
+import { fetchUserById, fetchUserPage, resetUserPassword, saveUser, toggleUserValid } from '../../api/user'
+import { isSessionExpiredError } from '../../utils/sessionExpired'
+import type { UserMgmtVO } from '../../models/userMgmt'
+
+const SYSTEM = 'system'
+
+export type UserDialogMode = 'view' | 'create' | 'edit'
 
 export function useUserController() {
   const keyword = ref('')
   const page = ref(1)
-  const pageSize = ref(8)
+  const pageSize = ref(10)
+  const total = ref(0)
+  const loading = ref(false)
+  const tableRows = ref<UserMgmtVO[]>([])
 
-  const allUsers = ref<UserRow[]>([
-    { id: 1, username: 'admin', nickname: '系统管理员', phone: '13800000001', email: 'admin@peach.com', role: '超级管理员', status: true },
-    { id: 2, username: 'ops01', nickname: '运维小李', phone: '13800000002', email: 'ops01@peach.com', role: '运维', status: true },
-    { id: 3, username: 'dev01', nickname: '开发小王', phone: '13800000003', email: 'dev01@peach.com', role: '开发', status: false },
-    { id: 4, username: 'qa01', nickname: '测试小周', phone: '13800000004', email: 'qa01@peach.com', role: '测试', status: true },
-    { id: 5, username: 'guest01', nickname: '访客A', phone: '13800000005', email: 'guest01@peach.com', role: '访客', status: true },
-    { id: 6, username: 'guest02', nickname: '访客B', phone: '13800000006', email: 'guest02@peach.com', role: '访客', status: false },
-    { id: 7, username: 'product', nickname: '产品经理', phone: '13800000007', email: 'pm@peach.com', role: '产品', status: true },
-    { id: 8, username: 'finance', nickname: '财务人员', phone: '13800000008', email: 'finance@peach.com', role: '财务', status: true },
-    { id: 9, username: 'hr001', nickname: '人事专员', phone: '13800000009', email: 'hr@peach.com', role: '人事', status: true },
-    { id: 10, username: 'support', nickname: '客服小赵', phone: '13800000010', email: 'support@peach.com', role: '客服', status: false },
-  ])
+  const dialogVisible = ref(false)
+  const dialogMode = ref<UserDialogMode>('view')
+  const submitLoading = ref(false)
+  const userForm = ref<UserMgmtVO>({})
 
-  const filteredUsers = computed(() => {
-    const q = keyword.value.trim().toLowerCase()
-    if (!q) {
-      return allUsers.value
+  const resetPwdVisible = ref(false)
+  const resetPwdTarget = ref<UserMgmtVO | null>(null)
+  const resetPwdForm = ref({ newPassword: '', confirmPassword: '' })
+  const resetPwdLoading = ref(false)
+
+  const formReadonly = computed(() => dialogMode.value === 'view')
+
+  const dialogTitle = computed(() => {
+    if (dialogMode.value === 'create') {
+      return '新增系统用户'
     }
-    return allUsers.value.filter((u) =>
-      [u.username, u.nickname, u.phone, u.email, u.role].some((v) => v.toLowerCase().includes(q)),
-    )
+    if (dialogMode.value === 'edit') {
+      return '编辑用户'
+    }
+    return '用户详情'
   })
 
-  const pagedUsers = computed(() => {
-    const start = (page.value - 1) * pageSize.value
-    return filteredUsers.value.slice(start, start + pageSize.value)
-  })
+  const loadList = async () => {
+    loading.value = true
+    try {
+      const data = await fetchUserPage({
+        pageNum: page.value,
+        pageSize: pageSize.value,
+        searchValue: keyword.value.trim() || undefined,
+      })
+      tableRows.value = data.list ?? []
+      total.value = data.total ?? 0
+    } catch (e) {
+      if (!isSessionExpiredError(e)) {
+        ElMessage.error(e instanceof Error ? e.message : '加载用户列表失败')
+      }
+    } finally {
+      loading.value = false
+    }
+  }
 
-  const total = computed(() => filteredUsers.value.length)
+  watch(
+    [page, pageSize],
+    () => {
+      void loadList()
+    },
+    { immediate: true },
+  )
 
   const onSearch = () => {
     page.value = 1
+    void loadList()
   }
 
   const onReset = () => {
     keyword.value = ''
     page.value = 1
+    void loadList()
   }
 
-  const onDelete = async (row: UserRow) => {
+  const loadUserIntoDialog = async (id: string | number, mode: UserDialogMode) => {
+    dialogMode.value = mode
+    dialogVisible.value = true
+    submitLoading.value = true
     try {
-      await ElMessageBox.confirm(`确定删除用户「${row.nickname}」吗？`, '删除确认', {
-        type: 'warning',
-        confirmButtonText: '删除',
-        cancelButtonText: '取消',
-      })
-      allUsers.value = allUsers.value.filter((u) => u.id !== row.id)
-      ElMessage.success('删除成功')
-      if (pagedUsers.value.length === 0 && page.value > 1) {
-        page.value -= 1
+      userForm.value = { ...(await fetchUserById(id)), plainPassword: '' }
+    } catch (e) {
+      if (!isSessionExpiredError(e)) {
+        ElMessage.error(e instanceof Error ? e.message : '加载用户失败')
+      }
+      dialogVisible.value = false
+    } finally {
+      submitLoading.value = false
+    }
+  }
+
+  const openDetail = (row: UserMgmtVO) => {
+    if (row.id == null) {
+      return
+    }
+    void loadUserIntoDialog(row.id, 'view')
+  }
+
+  const isSystemUser = (row: UserMgmtVO) => row.userType === SYSTEM
+
+  const onToggleValid = async (row: UserMgmtVO, val: boolean) => {
+    if (row.id == null) {
+      return
+    }
+    const prev = row.valid === 1
+    if (val === false) {
+      try {
+        await ElMessageBox.confirm('请确认是否将该用户改为无效用户？', '提示', {
+          type: 'warning',
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+        })
+      } catch {
+        return
       }
     }
-    catch {
-      // 用户取消删除时不提示
+    try {
+      const next = await toggleUserValid(row.id)
+      row.valid = next
+      ElMessage.success(next === 1 ? '已设为有效' : '已设为无效')
+    } catch (e) {
+      row.valid = prev ? 1 : 0
+      if (!isSessionExpiredError(e)) {
+        ElMessage.error(e instanceof Error ? e.message : '更新状态失败')
+      }
     }
   }
 
-  const onToggleStatus = (row: UserRow) => {
-    ElMessage.success(`${row.nickname} ${row.status ? '已启用' : '已停用'}`)
-  }
-
-  const dialogVisible = ref(false)
-  const activeTab = ref('base')
-
-  const userForm = reactive<UserFormModel>({
+  const emptyForm = (): UserMgmtVO => ({
     username: '',
     nickname: '',
-    phone: '',
+    mobile: '',
     email: '',
-    role: '访客',
-    status: true,
-    password: '',
-    confirmPassword: '',
+    realName: '',
     remark: '',
+    plainPassword: '',
+    valid: 1,
   })
+
+  const openCreate = () => {
+    dialogMode.value = 'create'
+    userForm.value = emptyForm()
+    dialogVisible.value = true
+  }
+
+  const openEdit = (row: UserMgmtVO) => {
+    if (!isSystemUser(row) || row.id == null) {
+      ElMessage.warning('仅系统用户支持资料修改')
+      return
+    }
+    void loadUserIntoDialog(row.id, 'edit')
+  }
+
+  const enterEditFromView = () => {
+    if (userForm.value.userType !== SYSTEM) {
+      return
+    }
+    dialogMode.value = 'edit'
+  }
 
   const rules: FormRules = {
     username: [{ required: true, message: '请输入登录账号', trigger: 'blur' }],
-    nickname: [{ required: true, message: '请输入用户昵称', trigger: 'blur' }],
-    phone: [{ required: true, message: '请输入手机号', trigger: 'blur' }],
-    role: [{ required: true, message: '请选择角色', trigger: 'change' }],
-    password: [{ required: true, message: '请输入初始密码', trigger: 'blur' }],
-  }
-
-  const openCreate = () => {
-    dialogVisible.value = true
-    activeTab.value = 'base'
-    Object.assign(userForm, {
-      username: '',
-      nickname: '',
-      phone: '',
-      email: '',
-      role: '访客',
-      status: true,
-      password: '',
-      confirmPassword: '',
-      remark: '',
-    })
+    nickname: [{ required: true, message: '请输入昵称', trigger: 'blur' }],
+    mobile: [{ required: true, message: '请输入手机号', trigger: 'blur' }],
   }
 
   const onSubmit = async () => {
-    if (!userForm.username || !userForm.nickname || !userForm.phone || !userForm.role || !userForm.password) {
-      ElMessage.warning('请完整填写必填项')
+    if (dialogMode.value === 'view') {
       return
     }
-    if (userForm.confirmPassword && userForm.password !== userForm.confirmPassword) {
-      ElMessage.error('两次密码不一致')
+    const f = userForm.value
+    if (dialogMode.value === 'create') {
+      if (!f.plainPassword || f.plainPassword.length < 6) {
+        ElMessage.warning('初始口令至少 6 位')
+        return
+      }
+    } else if (f.plainPassword && f.plainPassword.length < 6) {
+      ElMessage.warning('新口令至少 6 位')
       return
     }
-    const nextId = Math.max(...allUsers.value.map((u) => u.id), 0) + 1
-    allUsers.value.unshift({
-      id: nextId,
-      username: userForm.username,
-      nickname: userForm.nickname,
-      phone: userForm.phone,
-      email: userForm.email,
-      role: userForm.role,
-      status: userForm.status,
-      remark: userForm.remark,
-    })
-    dialogVisible.value = false
-    page.value = 1
-    ElMessage.success('新增用户成功（演示数据）')
+
+    submitLoading.value = true
+    try {
+      const payload: UserMgmtVO =
+        dialogMode.value === 'create'
+          ? {
+              username: f.username?.trim(),
+              nickname: f.nickname,
+              mobile: f.mobile,
+              email: f.email,
+              realName: f.realName,
+              remark: f.remark,
+              valid: f.valid ?? 1,
+              plainPassword: f.plainPassword,
+            }
+          : {
+              id: f.id,
+              username: f.username?.trim(),
+              nickname: f.nickname,
+              mobile: f.mobile,
+              email: f.email,
+              realName: f.realName,
+              remark: f.remark,
+              plainPassword: f.plainPassword?.trim() ? f.plainPassword : undefined,
+            }
+      await saveUser(payload)
+      ElMessage.success(dialogMode.value === 'create' ? '新增成功' : '保存成功')
+      // 后端仅返回 id，列表会整体刷新
+      dialogVisible.value = false
+      void loadList()
+    } catch (e) {
+      if (!isSessionExpiredError(e)) {
+        ElMessage.error(e instanceof Error ? e.message : '保存失败')
+      }
+    } finally {
+      submitLoading.value = false
+    }
+  }
+
+  const openResetPassword = (row: UserMgmtVO) => {
+    if (!isSystemUser(row) || row.id == null) {
+      ElMessage.warning('仅系统用户支持重置密码')
+      return
+    }
+    resetPwdTarget.value = row
+    resetPwdForm.value = { newPassword: '', confirmPassword: '' }
+    resetPwdVisible.value = true
+  }
+
+  const submitResetPassword = async () => {
+    const t = resetPwdTarget.value
+    if (t?.id == null) {
+      return
+    }
+    if (!resetPwdForm.value.newPassword || resetPwdForm.value.newPassword.length < 6) {
+      ElMessage.warning('新口令至少 6 位')
+      return
+    }
+    if (resetPwdForm.value.newPassword !== resetPwdForm.value.confirmPassword) {
+      ElMessage.error('两次输入的口令不一致')
+      return
+    }
+    resetPwdLoading.value = true
+    try {
+      await resetUserPassword({ id: t.id, newPassword: resetPwdForm.value.newPassword })
+      ElMessage.success('密码已重置')
+      resetPwdVisible.value = false
+    } catch (e) {
+      if (!isSessionExpiredError(e)) {
+        ElMessage.error(e instanceof Error ? e.message : '重置失败')
+      }
+    } finally {
+      resetPwdLoading.value = false
+    }
   }
 
   return {
     keyword,
     page,
     pageSize,
-    pagedUsers,
     total,
+    loading,
+    tableRows,
     dialogVisible,
-    activeTab,
+    dialogMode,
+    dialogTitle,
+    formReadonly,
+    submitLoading,
     userForm,
     rules,
+    resetPwdVisible,
+    resetPwdForm,
+    resetPwdLoading,
     onSearch,
     onReset,
-    onDelete,
-    onToggleStatus,
+    openDetail,
     openCreate,
+    openEdit,
+    enterEditFromView,
     onSubmit,
+    onToggleValid,
+    isSystemUser,
+    openResetPassword,
+    submitResetPassword,
   }
 }

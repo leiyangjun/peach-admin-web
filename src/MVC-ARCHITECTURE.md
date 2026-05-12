@@ -18,7 +18,7 @@
   - `controllers/auth/useLoginController.ts`
   - `views/auth/LoginView.vue`
 - 用户管理：
-  - `models/user.ts`
+  - `models/userMgmt.ts`
   - `controllers/system/useUserController.ts`
   - `views/system/UserView.vue`
 - 主布局：
