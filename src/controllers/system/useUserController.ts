@@ -3,9 +3,16 @@
  * 作者：leiyangjun
  */
 
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, type ComputedRef } from 'vue'
 import { ElMessage, ElMessageBox, type FormRules } from 'element-plus'
-import { fetchUserById, fetchUserPage, resetUserPassword, saveUser, toggleUserValid } from '../../api/user'
+import {
+  fetchUserById,
+  fetchUserPage,
+  hardDeleteUser,
+  resetUserPassword,
+  saveUser,
+  toggleUserValid,
+} from '../../api/user'
 import { isSessionExpiredError } from '../../utils/sessionExpired'
 import type { UserMgmtVO } from '../../models/userMgmt'
 
@@ -166,11 +173,23 @@ export function useUserController() {
     dialogMode.value = 'edit'
   }
 
-  const rules: FormRules = {
-    username: [{ required: true, message: '请输入登录账号', trigger: 'blur' }],
-    nickname: [{ required: true, message: '请输入昵称', trigger: 'blur' }],
-    mobile: [{ required: true, message: '请输入手机号', trigger: 'blur' }],
-  }
+  const rules: ComputedRef<FormRules> = computed(() => {
+    const base: FormRules = {
+      username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+      nickname: [{ required: true, message: '请输入昵称', trigger: 'blur' }],
+      mobile: [{ required: true, message: '请输入手机号', trigger: 'blur' }],
+    }
+    if (dialogMode.value === 'create') {
+      return {
+        ...base,
+        plainPassword: [
+          { required: true, message: '请输入密码', trigger: 'blur' },
+          { min: 6, message: '密码至少 6 位', trigger: 'blur' },
+        ],
+      }
+    }
+    return base
+  })
 
   const onSubmit = async () => {
     if (dialogMode.value === 'view') {
@@ -179,11 +198,11 @@ export function useUserController() {
     const f = userForm.value
     if (dialogMode.value === 'create') {
       if (!f.plainPassword || f.plainPassword.length < 6) {
-        ElMessage.warning('初始口令至少 6 位')
+        ElMessage.warning('密码至少 6 位')
         return
       }
     } else if (f.plainPassword && f.plainPassword.length < 6) {
-      ElMessage.warning('新口令至少 6 位')
+      ElMessage.warning('密码至少 6 位')
       return
     }
 
@@ -213,7 +232,7 @@ export function useUserController() {
             }
       await saveUser(payload)
       ElMessage.success(dialogMode.value === 'create' ? '新增成功' : '保存成功')
-      // 后端仅返回 id，列表会整体刷新
+      /** 仅成功路径（HTTP 200 + 业务成功码，见 saveUser）关闭弹窗并刷新；异常在 catch 中不关闭 */
       dialogVisible.value = false
       void loadList()
     } catch (e) {
@@ -235,17 +254,43 @@ export function useUserController() {
     resetPwdVisible.value = true
   }
 
+  /** 系统用户物理删除：确认后调接口，成功则刷新列表；HTTP/业务错误不关列表状态 */
+  const confirmHardDelete = async (row: UserMgmtVO) => {
+    if (!isSystemUser(row) || row.id == null) {
+      return
+    }
+    const name = row.username ?? row.nickname ?? String(row.id)
+    try {
+      await ElMessageBox.confirm(`确定物理删除系统用户「${name}」？该操作不可恢复。`, '物理删除', {
+        type: 'warning',
+        confirmButtonText: '确定删除',
+        cancelButtonText: '取消',
+      })
+    } catch {
+      return
+    }
+    try {
+      await hardDeleteUser(row.id)
+      ElMessage.success('已物理删除')
+      void loadList()
+    } catch (e) {
+      if (!isSessionExpiredError(e)) {
+        ElMessage.error(e instanceof Error ? e.message : '物理删除失败')
+      }
+    }
+  }
+
   const submitResetPassword = async () => {
     const t = resetPwdTarget.value
     if (t?.id == null) {
       return
     }
     if (!resetPwdForm.value.newPassword || resetPwdForm.value.newPassword.length < 6) {
-      ElMessage.warning('新口令至少 6 位')
+      ElMessage.warning('新密码至少 6 位')
       return
     }
     if (resetPwdForm.value.newPassword !== resetPwdForm.value.confirmPassword) {
-      ElMessage.error('两次输入的口令不一致')
+      ElMessage.error('两次输入的密码不一致')
       return
     }
     resetPwdLoading.value = true
@@ -289,6 +334,7 @@ export function useUserController() {
     onToggleValid,
     isSystemUser,
     openResetPassword,
+    confirmHardDelete,
     submitResetPassword,
   }
 }

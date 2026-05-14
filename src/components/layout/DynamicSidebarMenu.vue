@@ -43,7 +43,7 @@ function isMenuRow(node: MenuMgmtVO): boolean {
     </el-sub-menu>
     <el-menu-item v-else-if="isMenuRow(node)" :index="String(node.routePath).trim()">
       <el-icon><component :is="iconFor(node)" /></el-icon>
-      <template #title>{{ node.menuName }}</template>
+      <span>{{ node.menuName }}</span>
     </el-menu-item>
   </template>
 </template>

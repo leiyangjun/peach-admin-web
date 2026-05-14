@@ -18,7 +18,7 @@ export interface PageInfoUser {
   pages?: number
 }
 
-/** 分页查询全部用户（system + app），关键字匹配登录名/昵称/手机号 */
+/** 分页查询全部用户（system + app），关键字匹配用户名/昵称/手机号 */
 export async function fetchUserPage(query: UserPageQuery): Promise<PageInfoUser> {
   const { data: body } = await httpCommon.get<ApiEnvelope<PageInfoUser>>(`${BASE}/page`, {
     params: {
@@ -48,13 +48,22 @@ export async function fetchUserById(id: string | number): Promise<UserMgmtVO> {
   return body.data
 }
 
-/** 保存用户：响应 data 为主键 id（大整数可能为字符串） */
-export async function saveUser(payload: UserMgmtVO): Promise<string | number> {
-  const { data: body } = await httpCommon.post<ApiEnvelope<string | number>>(BASE, payload)
-  if (!isPeachSuccess(body.code) || body.data == null) {
+/**
+ * 保存用户：成功时响应 data 为主键 id（大整数可能为字符串）。
+ * 成功码下若 data 缺失（如全局 Jackson non_null 省略 null），仍视为成功，由列表刷新兜底。
+ */
+export async function saveUser(payload: UserMgmtVO): Promise<string | number | undefined> {
+  const res = await httpCommon.post<ApiEnvelope<string | number>>(BASE, payload)
+  /** 非 2xx 已由 Axios 拦截器 reject；此处显式要求 HTTP 200，避免网关以 200 以外成功态收口时误关弹窗 */
+  if (res.status !== 200) {
+    const msg = res.data?.msg
+    throw new Error(msg && msg.trim() ? msg.trim() : `保存用户失败（HTTP ${res.status}）`)
+  }
+  const body = res.data
+  if (!isPeachSuccess(body.code)) {
     throw new Error(body.msg || '保存用户失败')
   }
-  return body.data
+  return body.data ?? undefined
 }
 
 /** 切换用户有效状态：返回切换后的 valid（0 或 1） */
@@ -66,10 +75,23 @@ export async function toggleUserValid(id: string | number): Promise<number> {
   return Number(body.data)
 }
 
-/** 仅系统用户可重置登录口令 */
+/** 仅系统用户可重置登录密码 */
 export async function resetUserPassword(payload: ResetPwdDTO): Promise<void> {
   const { data: body } = await httpCommon.post<ApiEnvelope<unknown>>(`${BASE}/reset-password`, payload)
   if (!isPeachSuccess(body.code)) {
     throw new Error(body.msg || '重置密码失败')
+  }
+}
+
+/** 仅系统用户（userType=system）可物理删除；应用用户由后端拒绝 */
+export async function hardDeleteUser(id: string | number): Promise<void> {
+  const res = await httpCommon.delete<ApiEnvelope<unknown>>(`${BASE}/${id}/hard`)
+  if (res.status !== 200) {
+    const msg = res.data?.msg
+    throw new Error(msg && typeof msg === 'string' && msg.trim() ? msg.trim() : `物理删除失败（HTTP ${res.status}）`)
+  }
+  const body = res.data
+  if (!isPeachSuccess(body.code)) {
+    throw new Error(body.msg || '物理删除失败')
   }
 }

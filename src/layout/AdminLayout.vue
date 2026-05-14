@@ -40,16 +40,22 @@ const {
           <div class="sub-title">管理后台</div>
         </div>
       </div>
-      <el-menu
-        :default-active="activeMenu"
-        class="menu"
-        :collapse="appStore.sidebarCollapsed"
-        :router="false"
-        @select="handleMenuSelect"
-      >
-        <DynamicSidebarMenu v-if="menuTree.length" :nodes="menuTree" />
-        <el-empty v-else class="menu-empty" description="加载菜单中…" :image-size="48" />
-      </el-menu>
+      <div class="sidebar-menu-scroll">
+        <el-menu
+          :default-active="activeMenu"
+          class="menu"
+          background-color="transparent"
+          text-color="rgba(255, 255, 255, 0.9)"
+          active-text-color="#ffffff"
+          :collapse="appStore.sidebarCollapsed"
+          :router="false"
+          unique-opened
+          @select="handleMenuSelect"
+        >
+          <DynamicSidebarMenu v-if="menuTree.length" :nodes="menuTree" />
+          <el-empty v-else class="menu-empty" description="加载菜单中…" :image-size="48" />
+        </el-menu>
+      </div>
     </aside>
 
     <section class="main-wrapper">
@@ -159,7 +165,10 @@ const {
 <style scoped>
 .admin-layout {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
+  max-height: 100vh;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -169,6 +178,29 @@ const {
   color: #fff;
   padding: 18px 14px;
   box-shadow: 2px 0 14px rgb(0 0 0 / 12%);
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.sidebar-menu-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.sidebar-menu-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-menu-scroll::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 22%);
+  border-radius: 3px;
 }
 
 .collapsed .sidebar {
@@ -181,6 +213,7 @@ const {
   align-items: center;
   gap: 12px;
   padding: 8px 10px 18px;
+  flex-shrink: 0;
 }
 
 .brand-text {
@@ -214,11 +247,54 @@ const {
   background: transparent;
 }
 
+/** 内联子菜单容器默认白底，在深色侧栏上会呈现大块空白；与侧栏渐变统一为透明 */
+.menu :deep(.el-menu--inline),
+.menu :deep(.el-sub-menu > .el-menu) {
+  background-color: transparent !important;
+  border: none;
+  min-height: 0;
+}
+
+.menu :deep(.el-sub-menu__title) {
+  color: rgb(255 255 255 / 90%);
+  border-radius: 8px;
+  margin-bottom: 4px;
+  min-height: 36px;
+  height: 36px;
+  line-height: 36px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.menu:not(.el-menu--collapse) :deep(.el-sub-menu__title) {
+  padding: 0 12px;
+}
+
+.menu :deep(.el-sub-menu__title:hover) {
+  color: #fff;
+  background: rgb(255 255 255 / 12%);
+}
+
+.menu :deep(.el-sub-menu.is-active > .el-sub-menu__title) {
+  color: #fff;
+}
+
+.menu :deep(.el-sub-menu .el-icon),
+.menu :deep(.el-sub-menu__icon-arrow) {
+  color: inherit;
+}
+
 .menu :deep(.el-menu-item) {
   color: rgb(255 255 255 / 90%);
-  border-radius: 10px;
-  margin-bottom: 6px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  min-height: 36px;
+  height: 36px;
+  line-height: 36px;
   transition: all 0.2s ease;
+}
+
+.menu:not(.el-menu--collapse) :deep(.el-menu-item) {
+  padding: 0 12px;
 }
 
 .menu :deep(.el-menu-item:hover) {
@@ -227,6 +303,25 @@ const {
 }
 
 .menu :deep(.el-menu-item.is-active) {
+  color: #fff;
+  background: rgb(255 255 255 / 24%);
+  font-weight: 600;
+}
+
+/** 嵌套层级下的菜单项与顶层一致（紧凑行高；缩进沿用 Element Plus 默认层级 padding） */
+.menu :deep(.el-sub-menu .el-menu-item) {
+  color: rgb(255 255 255 / 88%);
+  min-height: 36px;
+  height: 36px;
+  line-height: 36px;
+}
+
+.menu :deep(.el-sub-menu .el-menu-item:hover) {
+  color: #fff;
+  background: rgb(255 255 255 / 14%);
+}
+
+.menu :deep(.el-sub-menu .el-menu-item.is-active) {
   color: #fff;
   background: rgb(255 255 255 / 24%);
   font-weight: 600;

@@ -8,9 +8,10 @@ export interface MenuMgmtVO {
   parentId?: string | number | null
   menuCode: string
   menuName: string
-  /** CATALOG | MENU | BUTTON */
+  /** CATALOG | MENU | BUTTON（后台枚举；前端表单仅维护目录/菜单） */
   menuType: string
   routePath?: string | null
+  /** 库表字段保留；前端不再维护，保存时不提交，由路由 path 约定解析视图 */
   componentPath?: string | null
   icon?: string | null
   orderNo?: number | null

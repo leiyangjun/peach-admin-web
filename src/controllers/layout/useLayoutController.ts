@@ -15,6 +15,12 @@ import { openExternalPage, openInternalRouteInNewWindow } from '../../utils/navi
 import { parseMenuRoutePath } from '../../utils/menuRoutePath'
 import { findMenuTitleByRoutePath } from '../../utils/menuTreeWalk'
 import { clearRegisteredMenuRoutes } from '../../router/dynamicMenuRoutes'
+import {
+  clearPersistedOpenTabs,
+  loadPersistedOpenTabs,
+  persistedToTabItems,
+  savePersistedOpenTabs,
+} from '../../utils/adminOpenTabsPersistence'
 
 const FRAME_EMBED_PATH = '/frame/embed'
 
@@ -25,6 +31,12 @@ export function useLayoutController() {
   const appStore = useAppStore()
   /** 侧栏数据源：写死树，不依赖登录后菜单接口 */
   const menuTree = STATIC_SIDEBAR_MENU_TREE
+
+  /** 刷新后恢复页签：动态路由已在 router.beforeEach 中注册完毕后再进入布局 */
+  const persistedTabs = loadPersistedOpenTabs()
+  if (persistedTabs.length) {
+    appStore.setTabs(persistedToTabItems(router, persistedTabs))
+  }
 
   const activeMenu = computed(() => {
     if (route.path === '/frame/embed') {
@@ -107,13 +119,23 @@ export function useLayoutController() {
           }
         }
       }
-      appStore.addTab(route.fullPath, title)
+      const routeName = typeof route.name === 'string' && route.name ? route.name : null
+      appStore.addTab(route.fullPath, title, routeName)
     },
     { immediate: true },
   )
 
+  watch(
+    () => appStore.tabs,
+    (tabs) => {
+      savePersistedOpenTabs(tabs)
+    },
+    { deep: true },
+  )
+
   const handleLogout = () => {
     clearRegisteredMenuRoutes(router)
+    clearPersistedOpenTabs()
     authStore.logout()
     ElMessage.success('已退出登录')
     router.replace('/login')
