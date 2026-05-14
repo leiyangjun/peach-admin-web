@@ -2,7 +2,7 @@
  * 用户管理（与 peach-common-service UserVO 对齐的展示/提交模型）。
  */
 
-/** 列表与详情（口令字段不落库，仅 plainPassword 用于新增/改密） */
+/** 列表与详情（密码不落库展示，仅 plainPassword 用于新增/改密） */
 export interface UserMgmtVO {
   id?: string | number
   userType?: string

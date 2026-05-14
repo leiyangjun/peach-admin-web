@@ -22,7 +22,6 @@ function emptyForm(parentId: string | number | null | undefined): MenuMgmtVO {
     menuType: 'MENU',
     parentId: parentId === undefined || parentId === null ? 0 : parentId,
     routePath: '',
-    componentPath: '',
     icon: '',
     orderNo: 10,
     remark: '',
@@ -184,11 +183,20 @@ export function useMenuController() {
   }
 
   /**
-   * 新增菜单：左侧已选中节点则作为上级（子菜单）；未选中则为一级菜单。
+   * 新增菜单：
+   * - 传入 parentIdOverride 时：以该值为上级（传 null/'' 视为 0，即一级菜单）。
+   * - 未传时：左侧已选中节点则作为上级（子菜单）；未选中则为一级菜单。
    */
-  const openCreateMenu = () => {
+  const openCreateMenu = (parentIdOverride?: string | number | null) => {
     panelMode.value = 'create'
     detail.value = null
+
+    if (parentIdOverride !== undefined) {
+      const p =
+        parentIdOverride === null || parentIdOverride === '' ? 0 : parentIdOverride
+      formModel.value = emptyForm(p)
+      return
+    }
 
     const pid = selectedId.value
     if (pid != null) {
@@ -223,9 +231,17 @@ export function useMenuController() {
       return
     }
 
+    if (!m.menuType || (m.menuType !== 'CATALOG' && m.menuType !== 'MENU')) {
+      ElMessage.warning('请选择类型：目录或菜单')
+      return
+    }
+
     loading.value = true
     try {
-      const saved = await saveMenu(m)
+      // 组件路径改由前端按 route_path 解析，保存时不提交该字段
+      const payload = { ...m } as MenuMgmtVO & { componentPath?: unknown }
+      delete payload.componentPath
+      const saved = await saveMenu(payload)
 
       ElMessage.success('保存成功')
 

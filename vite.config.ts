@@ -14,11 +14,13 @@ export default defineConfig({
 	server: {
 		proxy: {
 			// 必须写在 /api 之前：否则 /^\/api/ 会命中「/api-common」前缀，被错写成 /peach-auth-service-common/…（404）
+			// 浏览器：`/api-common{ADMIN}/...`（ADMIN 默认 `/admin`，见 src/config/adminApiPrefix.ts）→ 网关：`/peach-common-service{ADMIN}/...`
 			'/api-common': {
 				target: GATEWAY_TARGET,
 				changeOrigin: true,
 				rewrite: (path) => path.replace(/^\/api-common/, COMMON_SERVICE_PREFIX),
 			},
+			// 浏览器：`/api{ADMIN}/...` → 网关：`/peach-auth-service{ADMIN}/...`
 			'/api': {
 				target: GATEWAY_TARGET,
 				changeOrigin: true,

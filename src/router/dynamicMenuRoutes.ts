@@ -1,11 +1,13 @@
 /**
  * 根据菜单管理数据注册 Vue Router 子路由（仅站内 component 类菜单）。
+ * 组件文件由 route_path 按约定解析，不再依赖服务端 component_path。
  */
 import type { Router, RouteRecordRaw } from 'vue-router'
 import type { MenuMgmtVO } from '../models/menuMgmt'
 import { parseMenuRoutePath } from '../utils/menuRoutePath'
+import { resolveViewLoaderFromInternalPath } from '../utils/viewRouteResolver'
 
-const VIEW_GLOB = import.meta.glob('../views/**/*.vue')
+const FALLBACK_LOADER = () => import('../views/placeholders/RouteMissingView.vue')
 
 /** 已注册的动态路由 name，供登出时 removeRoute */
 const registeredRouteNames: string[] = []
@@ -33,27 +35,6 @@ export function clearRegisteredMenuRoutes(router: Router): void {
   staticSidebarBundleRegistered = false
 }
 
-/** 将菜单表 component_path 解析为 import.meta.glob 的 loader */
-function resolveViewLoader(componentPath: string): (() => Promise<unknown>) | null {
-  const p = componentPath.trim().replace(/\\/g, '/')
-  if (!p) {
-    return null
-  }
-  const candidates = [
-    p.startsWith('views/') ? `../${p}` : `../views/${p.replace(/^\/+/, '')}`,
-    `../views/${p.replace(/^views\//, '').replace(/^\/+/, '')}`,
-  ]
-  for (const k of candidates) {
-    const mod = VIEW_GLOB[k]
-    if (mod) {
-      return mod as () => Promise<unknown>
-    }
-  }
-  const tail = p.replace(/^views\//, '')
-  const hit = Object.keys(VIEW_GLOB).find((key) => key.endsWith(`/${tail}`) || key.endsWith(`/${tail}.vue`))
-  return hit ? (VIEW_GLOB[hit] as () => Promise<unknown>) : null
-}
-
 /** 已在 AdminShell 静态注册的子 path 前缀，避免 addRoute 冲突 */
 function isReservedStaticPath(fullPath: string): boolean {
   const p = fullPath.replace(/^\/+/, '')
@@ -69,7 +50,7 @@ function collectMenuRoutes(nodes: MenuMgmtVO[] | null | undefined, out: MenuMgmt
       const rp = (n.routePath ?? '').trim()
       if (rp) {
         const parsed = parseMenuRoutePath(rp)
-        if (parsed?.kind === 'internal' && (n.componentPath ?? '').trim() && !isReservedStaticPath(parsed.path)) {
+        if (parsed?.kind === 'internal' && !isReservedStaticPath(parsed.path)) {
           out.push(n)
         }
       }
@@ -96,9 +77,10 @@ export function registerRoutesFromMenuTree(router: Router, tree: MenuMgmtVO[], p
     if (!parsed || parsed.kind !== 'internal') {
       continue
     }
-    const loader = resolveViewLoader(String(m.componentPath ?? ''))
-    if (!loader) {
-      continue
+    const resolved = resolveViewLoaderFromInternalPath(parsed.path)
+    const loader = resolved ?? FALLBACK_LOADER
+    if (!resolved) {
+      console.warn(`[动态路由] 未找到视图: menuCode=${m.menuCode}, routePath=${m.routePath}`)
     }
     const routeName = `menu_${m.menuCode}`.replace(/[^\w]/g, '_')
     if (router.hasRoute(routeName)) {
