@@ -203,7 +203,7 @@ export function useDictController() {
     }
     const label = row.dictLabel ?? row.dictValue ?? String(row.id)
     try {
-      await ElMessageBox.confirm(`确定物理删除「${label}」？数据库行将永久删除，不可恢复。`, '物理删除', {
+      await ElMessageBox.confirm(`确定物理删除「${label}」？`, '物理删除', {
         type: 'warning',
         confirmButtonText: '确定删除',
         cancelButtonText: '取消',

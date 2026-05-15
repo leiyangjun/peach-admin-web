@@ -2,6 +2,14 @@
  * 菜单管理领域模型（与后端 MenuVO 对齐）。
  */
 
+import type { ApiMetaDTO } from './permission'
+
+/** 与后端 MenuButtonBindingItemDTO 对齐：单条按钮字典 + 该按钮下 API 全量列表 */
+export interface MenuMgmtButtonBindingItem {
+  dictButtonId: number
+  apis: ApiMetaDTO[]
+}
+
 export interface MenuMgmtVO {
   /** 雪花主键；JSON 中超过安全整数时由 httpCommon 解析为 string，禁止依赖 number 精度 */
   id?: string | number
@@ -22,4 +30,9 @@ export interface MenuMgmtVO {
   createTime?: string | null
   editTime?: string | null
   children?: MenuMgmtVO[] | null
+  /**
+   * 非 undefined 时与 POST /menu 一并提交，服务端与菜单同事务写入按钮+API。
+   * 目录 CATALOG 传空数组即可（服务端仅保留隐式 BTN_VIEW）；不传该字段表示不修改绑定（兼容旧客户端）。
+   */
+  buttonBindings?: MenuMgmtButtonBindingItem[] | null
 }

@@ -4,11 +4,14 @@
  */
 import { computed, ref } from 'vue'
 import { Delete, Edit, Plus } from '@element-plus/icons-vue'
-import type { FormInstance } from 'element-plus'
+import type { ElSelect, FormInstance, TableColumnCtx } from 'element-plus'
 import { useDictController } from '../../controllers/system/useDictController'
 import { DICT_LIST_CLASS_TAG_OPTIONS, listClassToElTagType } from '../../models/dictMgmt'
+import type { DictMgmtVO } from '../../models/dictMgmt'
 
 const dictFormRef = ref<FormInstance>()
+/** 字典类型 el-select（allow-create）：失焦时把筛选框内未确认的文本写回表单，与按 Enter 创建一致 */
+const dictTypeSelectRef = ref<InstanceType<typeof ElSelect>>()
 
 const {
   keyword,
@@ -34,6 +37,114 @@ const {
   confirmHardDelete,
 } = useDictController()
 
+/** 当前页内：按类型再按排序号稳定排序，便于相邻同类型合并；与接口顺序不一致时以展示顺序为准 */
+function sortRowsForDisplay(rows: DictMgmtVO[]): DictMgmtVO[] {
+  return [...rows].sort((a, b) => {
+    const ta = String(a.dictType ?? '').trim()
+    const tb = String(b.dictType ?? '').trim()
+    const byType = ta.localeCompare(tb, undefined, { sensitivity: 'base' })
+    if (byType !== 0) {
+      return byType
+    }
+    const sa = Number(a.sortNo ?? 0)
+    const sb = Number(b.sortNo ?? 0)
+    if (sa !== sb) {
+      return sa - sb
+    }
+    return String(a.id ?? '').localeCompare(String(b.id ?? ''))
+  })
+}
+
+const displayTableRows = computed(() => sortRowsForDisplay(tableRows.value))
+
+/** 类型列（el-table 列下标 1）每行的 rowspan；0 表示被上行合并隐藏 */
+const dictTypeColumnRowspans = computed(() => {
+  const rows = displayTableRows.value
+  const n = rows.length
+  const spans = new Array<number>(n).fill(1)
+  let i = 0
+  while (i < n) {
+    const t = String(rows[i].dictType ?? '').trim()
+    let j = i + 1
+    while (j < n && String(rows[j].dictType ?? '').trim() === t) {
+      j++
+    }
+    const len = j - i
+    spans[i] = len
+    for (let k = i + 1; k < j; k++) {
+      spans[k] = 0
+    }
+    i = j
+  }
+  return spans
+})
+
+/** 当前页内：与合并块一致，每行所属「连续 dictType 块」的序号（从 0 递增），用于类型列交替底色 */
+const dictTypeRowGroupIndex = computed(() => {
+  const rows = displayTableRows.value
+  const n = rows.length
+  const idx = new Array<number>(n).fill(0)
+  let i = 0
+  let group = 0
+  while (i < n) {
+    const t = String(rows[i].dictType ?? '').trim()
+    let j = i + 1
+    while (j < n && String(rows[j].dictType ?? '').trim() === t) {
+      j++
+    }
+    for (let k = i; k < j; k++) {
+      idx[k] = group
+    }
+    group++
+    i = j
+  }
+  return idx
+})
+
+/** 类型列合并组底色轮换数量（与 dictTypeRowGroupIndex 取模一致） */
+const DICT_TYPE_MERGE_PALETTE_LEN = 4
+
+/** 仅首格渲染：被合并行 rowspan 为 0 时不加组色，避免无效类名 */
+const dictTypeColumnCellClassName = ({
+  rowIndex,
+}: {
+  row: DictMgmtVO
+  column: TableColumnCtx<DictMgmtVO>
+  rowIndex: number
+  columnIndex: number
+}): string => {
+  if (typeof rowIndex !== 'number' || rowIndex < 0) {
+    return ''
+  }
+  const rowspan = dictTypeColumnRowspans.value[rowIndex] ?? 1
+  if (rowspan === 0) {
+    return ''
+  }
+  const g = dictTypeRowGroupIndex.value[rowIndex] ?? 0
+  return `dict-type-merge-g${g % DICT_TYPE_MERGE_PALETTE_LEN}`
+}
+
+const DICT_TABLE_TYPE_COLUMN_INDEX = 1
+
+const dictTableSpanMethod = ({
+  columnIndex,
+  rowIndex,
+}: {
+  row: DictMgmtVO
+  column: TableColumnCtx<DictMgmtVO>
+  rowIndex: number
+  columnIndex: number
+}) => {
+  if (columnIndex === DICT_TABLE_TYPE_COLUMN_INDEX) {
+    const rowspan = dictTypeColumnRowspans.value[rowIndex] ?? 1
+    if (rowspan === 0) {
+      return { rowspan: 0, colspan: 0 }
+    }
+    return { rowspan, colspan: 1 }
+  }
+  return { rowspan: 1, colspan: 1 }
+}
+
 /** 表单内字典类型下拉：合并已加载类型与当前输入值 */
 const dictTypeFormOptions = computed(() => {
   const opts = [...dictTypes.value]
@@ -43,6 +154,22 @@ const dictTypeFormOptions = computed(() => {
   }
   return opts
 })
+
+/**
+ * Element Plus 筛选态下，输入内容在失焦时会被丢弃；从内部 states 取出当前输入并提交（trim）。
+ * 若与已有选项在 trim 后完全一致，则采用选项原值（与点选/Enter 一致）。
+ */
+function commitDictTypeInputOnBlur() {
+  const sel = dictTypeSelectRef.value as unknown as { states?: { inputValue?: string } } | null
+  const raw = sel?.states?.inputValue
+  const trimmed = typeof raw === 'string' ? raw.trim() : ''
+  if (!trimmed) {
+    return
+  }
+  const opts = dictTypeFormOptions.value
+  const hit = opts.find((t) => String(t).trim() === trimmed)
+  dictForm.value.dictType = hit !== undefined ? hit : trimmed
+}
 
 const onSaveDict = async () => {
   const f = dictFormRef.value
@@ -88,7 +215,14 @@ const onSaveDict = async () => {
         </el-form>
       </div>
 
-      <el-table v-loading="loading" class="page-list-table" :data="tableRows" stripe>
+      <el-table
+        v-loading="loading"
+        class="page-list-table dict-main-table"
+        size="small"
+        :data="displayTableRows"
+        :span-method="dictTableSpanMethod"
+        stripe
+      >
         <template #empty>
           <el-empty
             :description="
@@ -99,7 +233,15 @@ const onSaveDict = async () => {
           />
         </template>
         <el-table-column type="index" label="#" width="56" :index="(i: number) => (page - 1) * pageSize + i + 1" />
-        <el-table-column prop="dictType" label="类型" min-width="130" show-overflow-tooltip>
+        <el-table-column
+          prop="dictType"
+          label="类型"
+          min-width="130"
+          show-overflow-tooltip
+          align="center"
+          class-name="dict-type-merge-col"
+          :cell-class-name="dictTypeColumnCellClassName"
+        >
           <template #default="{ row }">
             <span class="dict-type-cell">{{ row.dictType }}</span>
           </template>
@@ -163,6 +305,7 @@ const onSaveDict = async () => {
               <el-col :span="24">
                 <el-form-item label="字典类型" prop="dictType">
                   <el-select
+                    ref="dictTypeSelectRef"
                     v-model="dictForm.dictType"
                     filterable
                     allow-create
@@ -170,6 +313,7 @@ const onSaveDict = async () => {
                     placeholder="选择已有类型或输入新类型"
                     class="dict-drawer-field"
                     :teleported="false"
+                    @blur="commitDictTypeInputOnBlur"
                   >
                     <el-option v-for="t in dictTypeFormOptions" :key="t" :label="t" :value="t" />
                   </el-select>
@@ -284,6 +428,25 @@ const onSaveDict = async () => {
   font-size: 13px;
 }
 
+/* 类型列纵向合并后单元格垂直居中 */
+.page-list-table :deep(.dict-type-merge-col) {
+  vertical-align: middle;
+}
+
+/* 按当前页连续 dictType 分组交替浅色底，合并 rowspan 时仅首格着色即可铺满视觉块 */
+.page-list-table :deep(.dict-type-merge-col.dict-type-merge-g0) {
+  background-color: #e8f1fb;
+}
+.page-list-table :deep(.dict-type-merge-col.dict-type-merge-g1) {
+  background-color: #eef0f3;
+}
+.page-list-table :deep(.dict-type-merge-col.dict-type-merge-g2) {
+  background-color: #e8f5ea;
+}
+.page-list-table :deep(.dict-type-merge-col.dict-type-merge-g3) {
+  background-color: #f3eef8;
+}
+
 /* 列表区单卡片：工具条与表头视觉同一色带，减少双层卡片与竖向空隙 */
 .page-list-card :deep(.el-card__body) {
   padding: 0;
@@ -330,6 +493,19 @@ const onSaveDict = async () => {
 
 .page-list-table :deep(.el-table) {
   border-radius: 0 0 8px 8px;
+}
+
+/* 主列表略收紧行高与字号，同屏可见更多行 */
+.dict-main-table :deep(.el-table__cell) {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.dict-main-table :deep(.el-table .cell) {
+  padding-left: 8px;
+  padding-right: 8px;
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 .pager {

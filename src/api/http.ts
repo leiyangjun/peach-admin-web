@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { ADMIN_API_PATH_PREFIX } from '../config/adminApiPrefix'
+import { normalizeAxiosParamsEncoding } from '../utils/queryParamEncoding'
 import { rejectAxiosResponse } from './axiosResponseHandler'
 
 /**
@@ -12,6 +13,7 @@ const http = axios.create({
 })
 
 http.interceptors.request.use((config) => {
+  normalizeAxiosParamsEncoding(config.params)
   const token = localStorage.getItem('peach_admin_token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`

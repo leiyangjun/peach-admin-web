@@ -1,9 +1,15 @@
 /**
- * 角色管理：新增/编辑共用对话框；分页、物理删除、绑定用户（分页多选合并）。
+ * 角色管理：新增/编辑共用对话框；分页、物理删除；绑定用户（左右穿梭）；绑定菜单（树表 + 按钮多选）。
  */
 
-import { computed, nextTick, ref, useTemplateRef, watch, type ComputedRef } from 'vue'
+import { computed, ref, watch, type ComputedRef } from 'vue'
 import { ElMessage, ElMessageBox, type FormRules } from 'element-plus'
+import {
+  fetchMenuButtonsRolePicker,
+  fetchRoleMenuButtonIds,
+  replaceRoleMenuButtons,
+} from '../../api/permission'
+import { fetchMenuTreeValid } from '../../api/menu'
 import {
   fetchRoleById,
   fetchRolePage,
@@ -12,8 +18,9 @@ import {
   replaceRoleUsers,
   saveRole,
 } from '../../api/role'
-import { fetchUserPage } from '../../api/user'
+import { fetchUserById, fetchUserPage } from '../../api/user'
 import { isSessionExpiredError } from '../../utils/sessionExpired'
+import { applyRoleMenuBindImplicitSelections, buildRoleMenuBindTree, type MenuBindTreeRow } from '../../utils/roleMenuBindRules'
 import type { RoleMgmtVO } from '../../models/roleMgmt'
 import type { UserMgmtVO } from '../../models/userMgmt'
 
@@ -42,14 +49,22 @@ export function useRoleController() {
   const bindPickerPageSize = ref(10)
   const bindPickerTotal = ref(0)
   const bindPickerKeyword = ref('')
-  /** 跨页累积的已选用户 id（字符串，兼容雪花） */
-  const bindUserIds = ref<string[]>([])
-  /** 与模板中 {@code ref="bindPickerTable"} 对应 */
-  const bindPickerTableRef = useTemplateRef<{
-    clearSelection: () => void
-    toggleRowSelection: (row: UserMgmtVO, selected?: boolean) => void
-  }>('bindPickerTable')
-  const bindSyncingSelection = ref(false)
+  /** 右侧已选用户（全量对象，提交时取 id） */
+  const bindRightUsers = ref<UserMgmtVO[]>([])
+  const bindUserIds = computed(() =>
+    bindRightUsers.value.map((u) => (u.id != null ? String(u.id) : '')).filter((x) => !!x),
+  )
+
+  const bindMbDialogVisible = ref(false)
+  const bindMbRoleId = ref<string | number | undefined>(undefined)
+  const bindMbRoleLabel = ref('')
+  const bindMbSubmitLoading = ref(false)
+  const bindMbPickerLoading = ref(false)
+  /** 树表数据：目录 / 菜单层级 + 每行挂载可选按钮实例 */
+  const bindMbTreeRows = ref<MenuBindTreeRow[]>([])
+  /** 已选菜单按钮实例 id（含规则推导的隐式「查看」） */
+  const bindMbMenuButtonIds = ref<string[]>([])
+  const bindMbSelectedSet = computed(() => new Set(bindMbMenuButtonIds.value))
 
   const dialogTitle = computed(() => (dialogMode.value === 'create' ? '新增角色' : '编辑角色'))
 
@@ -167,7 +182,7 @@ export function useRoleController() {
     }
     const name = row.roleName ?? row.roleCode ?? String(row.id)
     try {
-      await ElMessageBox.confirm(`确定物理删除角色「${name}」？将同时移除菜单/按钮/用户关联，且不可恢复。`, '物理删除', {
+      await ElMessageBox.confirm(`确定物理删除「${name}」？`, '物理删除', {
         type: 'warning',
         confirmButtonText: '确定删除',
         cancelButtonText: '取消',
@@ -186,23 +201,48 @@ export function useRoleController() {
     }
   }
 
-  const syncPickerSelection = async () => {
-    bindSyncingSelection.value = true
-    try {
-      await nextTick()
-      const tb = bindPickerTableRef.value
-      if (!tb) {
-        return
-      }
-      tb.clearSelection()
-      for (const row of bindPickerRows.value) {
-        if (row.id != null && bindUserIds.value.includes(String(row.id))) {
-          tb.toggleRowSelection(row, true)
-        }
-      }
-    } finally {
-      bindSyncingSelection.value = false
+  async function loadBindRightFromServerIds(ids: string[]) {
+    if (!ids.length) {
+      bindRightUsers.value = []
+      return
     }
+    const rows = await Promise.all(
+      ids.map(async (id) => {
+        try {
+          return await fetchUserById(id)
+        } catch {
+          return { id, username: `（用户 ${id} 不可加载）`, nickname: '' } as UserMgmtVO
+        }
+      }),
+    )
+    bindRightUsers.value = rows
+  }
+
+  const bindRightUserKeySet = computed(() => new Set(bindUserIds.value))
+
+  function userRowKey(row: UserMgmtVO) {
+    return row.id != null ? String(row.id) : ''
+  }
+
+  function leftBindUserRowClassName({ row }: { row: UserMgmtVO }) {
+    const k = userRowKey(row)
+    return k && bindRightUserKeySet.value.has(k) ? 'shuttle-row--picked' : ''
+  }
+
+  function addBindUserFromLeft(row: UserMgmtVO) {
+    const k = userRowKey(row)
+    if (!k) {
+      return
+    }
+    if (bindRightUserKeySet.value.has(k)) {
+      return
+    }
+    bindRightUsers.value = [...bindRightUsers.value, { ...row }]
+  }
+
+  function removeBindRightUser(row: UserMgmtVO) {
+    const k = userRowKey(row)
+    bindRightUsers.value = bindRightUsers.value.filter((u) => userRowKey(u) !== k)
   }
 
   const loadBindPicker = async () => {
@@ -219,7 +259,6 @@ export function useRoleController() {
       })
       bindPickerRows.value = data.list ?? []
       bindPickerTotal.value = data.total ?? 0
-      await syncPickerSelection()
     } catch (e) {
       if (!isSessionExpiredError(e)) {
         ElMessage.error(e instanceof Error ? e.message : '加载用户列表失败')
@@ -246,7 +285,7 @@ export function useRoleController() {
     bindPickerPage.value = 1
     try {
       const ids = await fetchRoleUserIds(row.id)
-      bindUserIds.value = ids.map((x) => String(x))
+      await loadBindRightFromServerIds(ids.map((x) => String(x)))
     } catch (e) {
       if (!isSessionExpiredError(e)) {
         ElMessage.error(e instanceof Error ? e.message : '加载已绑定用户失败')
@@ -268,26 +307,8 @@ export function useRoleController() {
     void loadBindPicker()
   }
 
-  const onBindSelectionChange = (selection: UserMgmtVO[]) => {
-    if (bindSyncingSelection.value) {
-      return
-    }
-    const pageIds = bindPickerRows.value.map((r) => String(r.id))
-    const set = new Set(bindUserIds.value)
-    for (const pid of pageIds) {
-      set.delete(pid)
-    }
-    for (const r of selection) {
-      if (r.id != null) {
-        set.add(String(r.id))
-      }
-    }
-    bindUserIds.value = [...set]
-  }
-
   const clearBindSelection = () => {
-    bindUserIds.value = []
-    void syncPickerSelection()
+    bindRightUsers.value = []
   }
 
   const submitBindUsers = async () => {
@@ -305,6 +326,75 @@ export function useRoleController() {
       }
     } finally {
       bindSubmitLoading.value = false
+    }
+  }
+
+  const loadBindMbPicker = async () => {
+    bindMbPickerLoading.value = true
+    try {
+      const [picker, menuRoots] = await Promise.all([fetchMenuButtonsRolePicker(), fetchMenuTreeValid()])
+      bindMbTreeRows.value = buildRoleMenuBindTree(menuRoots ?? [], picker)
+    } catch (e) {
+      if (!isSessionExpiredError(e)) {
+        ElMessage.error(e instanceof Error ? e.message : '加载菜单与按钮列表失败')
+      }
+      bindMbTreeRows.value = []
+    } finally {
+      bindMbPickerLoading.value = false
+    }
+  }
+
+  /** 合并勾选规则后写回 bindMbMenuButtonIds */
+  function mergeMbSelectionWithRules(base: Set<string>) {
+    bindMbMenuButtonIds.value = [...applyRoleMenuBindImplicitSelections(base, bindMbTreeRows.value)]
+  }
+
+  function toggleBindMbMenuButton(menuButtonId: string, checked: boolean) {
+    const s = new Set(bindMbMenuButtonIds.value)
+    if (checked) {
+      s.add(menuButtonId)
+    } else {
+      s.delete(menuButtonId)
+    }
+    mergeMbSelectionWithRules(s)
+  }
+
+  const openBindMenuButtons = async (row: RoleMgmtVO) => {
+    if (row.id == null) {
+      return
+    }
+    bindMbRoleId.value = row.id
+    bindMbRoleLabel.value = row.roleName ?? row.roleCode ?? String(row.id)
+    bindMbDialogVisible.value = true
+    bindMbMenuButtonIds.value = []
+    bindMbTreeRows.value = []
+    await loadBindMbPicker()
+    try {
+      const raw = (await fetchRoleMenuButtonIds(row.id)).map((x) => String(x))
+      mergeMbSelectionWithRules(new Set(raw))
+    } catch (e) {
+      if (!isSessionExpiredError(e)) {
+        ElMessage.error(e instanceof Error ? e.message : '加载已绑定菜单按钮失败')
+      }
+      bindMbDialogVisible.value = false
+    }
+  }
+
+  const submitBindMenuButtons = async () => {
+    if (bindMbRoleId.value == null) {
+      return
+    }
+    bindMbSubmitLoading.value = true
+    try {
+      await replaceRoleMenuButtons(bindMbRoleId.value, bindMbMenuButtonIds.value)
+      ElMessage.success('菜单绑定已保存')
+      bindMbDialogVisible.value = false
+    } catch (e) {
+      if (!isSessionExpiredError(e)) {
+        ElMessage.error(e instanceof Error ? e.message : '保存失败')
+      }
+    } finally {
+      bindMbSubmitLoading.value = false
     }
   }
 
@@ -337,11 +427,24 @@ export function useRoleController() {
     bindPickerTotal,
     bindPickerKeyword,
     bindUserIds,
+    bindRightUsers,
     openBindUsers,
     onBindSearch,
     onBindReset,
-    onBindSelectionChange,
+    leftBindUserRowClassName,
+    addBindUserFromLeft,
+    removeBindRightUser,
     clearBindSelection,
     submitBindUsers,
+    bindMbDialogVisible,
+    bindMbRoleLabel,
+    bindMbSubmitLoading,
+    bindMbPickerLoading,
+    bindMbTreeRows,
+    bindMbMenuButtonIds,
+    bindMbSelectedSet,
+    openBindMenuButtons,
+    toggleBindMbMenuButton,
+    submitBindMenuButtons,
   }
 }

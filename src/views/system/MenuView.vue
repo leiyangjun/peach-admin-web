@@ -4,9 +4,21 @@
  */
 import { computed, ref, watch } from 'vue'
 import { Plus, QuestionFilled } from '@element-plus/icons-vue'
+import type { ElTable } from 'element-plus'
 import { useMenuController } from '../../controllers/system/useMenuController'
+import { useMenuPermission } from '../../controllers/system/useMenuPermission'
+import DictButtonShuttleDialog from '../../components/DictButtonShuttleDialog.vue'
+import ApiResourceShuttleDialog from '../../components/ApiResourceShuttleDialog.vue'
 import { MENU_ICON_OPTIONS, type MenuIconOption } from '../../constants/menuIconOptions'
-import type { MenuMgmtVO } from '../../models/menuMgmt'
+import type { MenuMgmtButtonBindingItem, MenuMgmtVO } from '../../models/menuMgmt'
+import type { MenuButtonPickerRow } from '../../models/permission'
+
+/** 提交时并入 buttonBindings；在 useMenuPermission 初始化后赋值 */
+const getButtonBindingsForSaveRef = ref<(() => MenuMgmtButtonBindingItem[]) | null>(null)
+
+function leftButtonRowKey(row: MenuButtonPickerRow) {
+  return String(row.menuButtonId ?? row.dictButtonId ?? row.buttonCode ?? '')
+}
 
 /** 左侧树：有效(显示)与无效(隐藏)使用不同文字颜色 */
 function menuTreeLabelClass(data: MenuMgmtVO): string {
@@ -23,12 +35,73 @@ const {
   formModel,
   showEditor,
   parentMenuLabel,
-  onTreeNodeClick,
-  openCreateMenu,
-  cancelPanel,
   submitForm,
   onDelete,
-} = useMenuController()
+  openCreateMenu: openCreateMenuBase,
+  onTreeNodeClick: onTreeNodeClickBase,
+  cancelPanel: cancelPanelBase,
+  permissionBootstrapNonce,
+} = useMenuController({
+  getButtonBindingsForSave: () => getButtonBindingsForSaveRef.value?.(),
+})
+
+const perm = useMenuPermission(formModel, panelMode, showEditor, permissionBootstrapNonce)
+getButtonBindingsForSaveRef.value = () => perm.buildButtonBindingsForMenuSave()
+
+const {
+  permLoading,
+  buttonDict,
+  menuButtonTableRows,
+  leftButtonTableRef,
+  onLeftButtonCurrentChange,
+  rightApis,
+  rightApisLoading,
+  dictShuttleVisible,
+  dictShuttleSeedIds,
+  viewDictId,
+  openDictPicker,
+  onDictShuttleConfirm,
+  removeMenuButtonRow,
+  isMenuType,
+  registryServices,
+  apiShuttleVisible,
+  apiShuttleSeedApis,
+  apiShuttleButtonLabel,
+  apiPickerLoading,
+  openApiPickerDialog,
+  onApiShuttleConfirm,
+  apiRowKeyFn,
+  abortCreateDraft,
+} = perm
+
+/** 新建中途再点「新增」：先丢弃按钮草稿再打开空表单 */
+function openCreateMenu(parentIdOverride?: string | number | null) {
+  if (panelMode.value === 'create') {
+    abortCreateDraft()
+  }
+  openCreateMenuBase(parentIdOverride)
+}
+
+/** 新建中途点树节点：先丢草稿再加载所选菜单 */
+async function onTreeNodeClick(data: MenuMgmtVO) {
+  if (panelMode.value === 'create') {
+    abortCreateDraft()
+  }
+  await onTreeNodeClickBase(data)
+}
+
+/** 取消新建：先丢草稿再恢复原逻辑 */
+async function cancelPanel() {
+  if (panelMode.value === 'create') {
+    abortCreateDraft()
+  }
+  await cancelPanelBase()
+}
+
+/** 左侧按钮表 ref：由 composable 持有，供保存字典后 setCurrentRow */
+function bindLeftButtonTable(el: unknown) {
+  leftButtonTableRef.value = (el ?? null) as InstanceType<typeof ElTable> | null
+}
 
 const menuTypeOptions = [
   { label: '目录', value: 'CATALOG' },
@@ -43,9 +116,6 @@ const iconSelectOptions = computed((): MenuIconOption[] => {
   }
   return MENU_ICON_OPTIONS
 })
-
-/** 预留区块默认折叠，减少右侧纵向占位 */
-const collapseActive = ref<string[]>([])
 
 /** 左侧菜单树默认宽度（px），较原栅格约 33% 更窄 */
 const TREE_PANEL_DEFAULT_PX = 240
@@ -191,7 +261,18 @@ watch(
                       </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12">
-                      <el-form-item :for="''" label="类型" required>
+                      <el-form-item :for="''" required>
+                        <template #label>
+                          <span class="label-with-tip">
+                            类型
+                            <el-tooltip
+                              content="修改时切换「目录」会暂存当前按钮与 API 绑定，切回「菜单」后恢复；最终以「提交」写入数据库。"
+                              placement="top"
+                            >
+                              <el-icon class="label-tip-icon"><QuestionFilled /></el-icon>
+                            </el-tooltip>
+                          </span>
+                        </template>
                         <el-select v-model="formModel.menuType" class="w-full" placeholder="目录 / 菜单">
                           <el-option v-for="o in menuTypeOptions" :key="o.value" :label="o.label" :value="o.value" />
                         </el-select>
@@ -284,21 +365,109 @@ watch(
                 </div>
               </el-form>
 
-              <el-collapse v-model="collapseActive" class="menu-extra-collapse">
-                <el-collapse-item title="菜单按钮（预留）" name="placeholder">
-                  <el-alert
-                    type="info"
-                    show-icon
-                    :closable="false"
-                    class="detail-alert-compact"
-                    title="后续将在此维护当前菜单下的操作按钮（数据表 cmn_menu_button），并与角色授权联动。"
-                  />
-                  <div class="placeholder-actions">
-                    <el-button disabled size="small">绑定按钮（敬请期待）</el-button>
+              <div class="menu-perm-section">
+                  <div v-if="isMenuType" v-loading="permLoading" class="menu-perm-block">
+                    <el-row :gutter="12" class="menu-perm-split">
+                      <el-col :xs="24" :sm="9" :md="9">
+                        <div class="perm-left-col-stack">
+                          <el-tooltip content="绑定按钮" placement="top" class="perm-button-add-tip">
+                            <button
+                              type="button"
+                              class="perm-button-table-add"
+                              aria-label="绑定按钮"
+                              :disabled="permLoading"
+                              @click="openDictPicker"
+                            >
+                              <el-icon><Plus /></el-icon>
+                            </button>
+                          </el-tooltip>
+                          <el-table
+                            :ref="bindLeftButtonTable"
+                            :data="menuButtonTableRows"
+                            :row-key="leftButtonRowKey"
+                            size="small"
+                            border
+                            stripe
+                            class="perm-left-table"
+                            height="280"
+                            highlight-current
+                            @current-change="onLeftButtonCurrentChange"
+                          >
+                            <template #empty>
+                              <div class="perm-empty-add" role="button" tabindex="0" @click="openDictPicker">
+                                暂无按钮，点击此处绑定
+                              </div>
+                            </template>
+                            <el-table-column prop="buttonName" label="名称" min-width="72" show-overflow-tooltip />
+                            <el-table-column prop="buttonCode" label="编码" width="92" show-overflow-tooltip />
+                            <el-table-column label="操作" width="56" fixed="right">
+                              <template #default="{ row }">
+                                <el-button
+                                  type="danger"
+                                  link
+                                  size="small"
+                                  :disabled="permLoading"
+                                  @click.stop="removeMenuButtonRow(row)"
+                                >
+                                  删除
+                                </el-button>
+                              </template>
+                            </el-table-column>
+                          </el-table>
+                        </div>
+                      </el-col>
+                      <el-col :xs="24" :sm="15" :md="15">
+                        <div class="perm-right-col-stack">
+                          <el-tooltip content="绑定API资源" placement="top" class="perm-button-add-tip">
+                            <button
+                              type="button"
+                              class="perm-button-table-add"
+                              aria-label="绑定API资源"
+                              :disabled="permLoading || apiPickerLoading"
+                              @click="openApiPickerDialog"
+                            >
+                              <el-icon><Plus /></el-icon>
+                            </button>
+                          </el-tooltip>
+                          <el-table
+                            v-loading="rightApisLoading"
+                            :data="rightApis"
+                            size="small"
+                            border
+                            stripe
+                            class="perm-right-table"
+                            height="280"
+                            :row-key="apiRowKeyFn"
+                          >
+                            <template #empty>
+                              <el-empty description="请在左侧选择一行按钮" :image-size="40" />
+                            </template>
+                            <el-table-column prop="method" label="方法" width="72" />
+                            <el-table-column prop="urlPath" label="路径" min-width="140" show-overflow-tooltip />
+                            <el-table-column prop="summary" label="摘要" min-width="100" show-overflow-tooltip />
+                          </el-table>
+                        </div>
+                      </el-col>
+                    </el-row>
                   </div>
-                </el-collapse-item>
-              </el-collapse>
+              </div>
             </div>
+
+            <DictButtonShuttleDialog
+              v-model:visible="dictShuttleVisible"
+              :model-value="dictShuttleSeedIds"
+              :button-dict="buttonDict"
+              :view-dict-id="viewDictId"
+              @confirm="onDictShuttleConfirm"
+            />
+
+            <ApiResourceShuttleDialog
+              v-model:visible="apiShuttleVisible"
+              :model-value="apiShuttleSeedApis"
+              :registry-services="registryServices"
+              :button-label="apiShuttleButtonLabel"
+              @confirm="onApiShuttleConfirm"
+            />
 
             <div class="form-footer-bar">
               <div class="footer-actions">
@@ -608,26 +777,90 @@ watch(
   min-height: 32px;
 }
 
-.menu-extra-collapse {
+/** 菜单按钮与 API 区域（无折叠标题栏） */
+.menu-perm-section {
   margin-top: 4px;
-  border: none;
-}
-
-.menu-extra-collapse :deep(.el-collapse-item__header) {
-  height: 36px;
-  padding: 0 4px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--el-text-color-regular);
-  background: transparent;
-}
-
-.menu-extra-collapse :deep(.el-collapse-item__wrap) {
-  border-bottom: none;
-}
-
-.menu-extra-collapse :deep(.el-collapse-item__content) {
   padding-bottom: 8px;
+}
+
+.menu-perm-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.menu-perm-split {
+  margin-top: 4px;
+}
+
+/** 左右列：表顶全宽虚线「+」+ 表格（与菜单树底「+」视觉一致） */
+.perm-left-col-stack,
+.perm-right-col-stack {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.perm-button-add-tip {
+  display: block;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.perm-button-table-add {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 36px;
+  margin-top: 0;
+  margin-bottom: 6px;
+  padding: 0;
+  border: 1px dashed var(--el-border-color);
+  border-radius: 6px;
+  background: var(--el-fill-color-blank);
+  color: var(--el-text-color-secondary);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.perm-button-table-add:hover:not(:disabled) {
+  border-color: var(--el-color-primary-light-5);
+  color: var(--el-color-primary);
+  background: var(--el-fill-color-light);
+}
+
+.perm-button-table-add:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 1px;
+}
+
+.perm-button-table-add:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.perm-left-table,
+.perm-right-table {
+  width: 100%;
+}
+
+.perm-empty-add {
+  padding: 16px 8px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--el-color-primary);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.perm-empty-add:hover {
+  background: var(--el-fill-color-light);
 }
 
 .panel-header {

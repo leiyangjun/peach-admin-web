@@ -23,3 +23,11 @@ body {
   border-radius: 14px;
   border: 1px solid #e3ebfb;
 }
+
+/**
+ * 禁止鼠标点击表单项 label 触发关联控件（避免误触开关、单选等）。
+ * 键盘 Tab 仍可聚焦控件；若某页需要「点标签聚焦」，可对该容器内覆盖 pointer-events: auto。
+ */
+.el-form-item__label {
+  pointer-events: none;
+}

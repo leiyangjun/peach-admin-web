@@ -13,6 +13,11 @@ export default defineConfig({
 	plugins: [vue()],
 	server: {
 		proxy: {
+			// 浏览器：`/{serviceId}{ADMIN}/apis/...`（如 `/peach-common-service/admin/apis/type/admin`）→ 网关同路径，不剥离服务前缀
+			'^/peach-[a-z0-9-]+': {
+				target: GATEWAY_TARGET,
+				changeOrigin: true,
+			},
 			// 必须写在 /api 之前：否则 /^\/api/ 会命中「/api-common」前缀，被错写成 /peach-auth-service-common/…（404）
 			// 浏览器：`/api-common{ADMIN}/...`（ADMIN 默认 `/admin`，见 src/config/adminApiPrefix.ts）→ 网关：`/peach-common-service{ADMIN}/...`
 			'/api-common': {
