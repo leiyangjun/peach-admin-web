@@ -261,7 +261,7 @@ export function useUserController() {
     }
     const name = row.username ?? row.nickname ?? String(row.id)
     try {
-      await ElMessageBox.confirm(`确定物理删除系统用户「${name}」？该操作不可恢复。`, '物理删除', {
+      await ElMessageBox.confirm(`确定物理删除「${name}」？`, '物理删除', {
         type: 'warning',
         confirmButtonText: '确定删除',
         cancelButtonText: '取消',

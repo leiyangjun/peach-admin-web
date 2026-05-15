@@ -6,7 +6,7 @@ import { computed, onMounted, ref } from 'vue'
 
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-import type { MenuMgmtVO } from '../../models/menuMgmt'
+import type { MenuMgmtButtonBindingItem, MenuMgmtVO } from '../../models/menuMgmt'
 
 import { deleteMenuPhysically, fetchMenuById, fetchMenuTreeAll, saveMenu } from '../../api/menu'
 
@@ -60,8 +60,23 @@ function findMenuNameInTree(nodes: MenuMgmtVO[], id: string | number | null | un
   return null
 }
 
-export function useMenuController() {
+export type UseMenuControllerOptions = {
+  /**
+   * 提交菜单时并入 `buttonBindings`；与 useMenuPermission.buildButtonBindingsForMenuSave 配合。
+   * 返回 `undefined` 表示本次不提交绑定字段。
+   */
+  getButtonBindingsForSave?: () => MenuMgmtButtonBindingItem[] | undefined
+}
+
+export function useMenuController(options?: UseMenuControllerOptions) {
   const loading = ref(false)
+
+  /** 与 useMenuPermission 联动：详情从服务端刷新后递增，触发按钮区从库重载 */
+  const permissionBootstrapNonce = ref(0)
+
+  function bumpPermissionBootstrapNonce() {
+    permissionBootstrapNonce.value += 1
+  }
 
   const treeData = ref<MenuMgmtVO[]>([])
 
@@ -128,6 +143,7 @@ export function useMenuController() {
   const syncFormFromDetail = () => {
     if (detail.value) {
       formModel.value = cloneFormFromDetail(detail.value)
+      bumpPermissionBootstrapNonce()
     }
   }
 
@@ -241,6 +257,10 @@ export function useMenuController() {
       // 组件路径改由前端按 route_path 解析，保存时不提交该字段
       const payload = { ...m } as MenuMgmtVO & { componentPath?: unknown }
       delete payload.componentPath
+      const bb = options?.getButtonBindingsForSave?.()
+      if (bb !== undefined) {
+        payload.buttonBindings = bb
+      }
       const saved = await saveMenu(payload)
 
       ElMessage.success('保存成功')
@@ -337,6 +357,7 @@ export function useMenuController() {
     formModel,
     showEditor,
     parentMenuLabel,
+    permissionBootstrapNonce,
     onTreeNodeClick,
     openCreateMenu,
     cancelPanel,
