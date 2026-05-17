@@ -1,6 +1,6 @@
 /**
  * 统一解析网关 / 业务服务返回的错误信息（Peach ApiEnvelope：code、msg、data）。
- * 用于 Axios 响应拦截与手动兜底，避免用户看到英文状态码句或空白提示。
+ * 用于 Axios 响应拦截与手动兜底，统一展示后端 msg。
  */
 
 import axios, { type AxiosError } from 'axios'

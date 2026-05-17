@@ -80,6 +80,16 @@ export const STATIC_SIDEBAR_MENU_TREE: MenuMgmtVO[] = [
             valid: 1,
           },
           {
+            id: 'st-scheduler',
+            menuCode: 'SYS_SCHEDULER',
+            menuName: '定时任务管理',
+            menuType: 'MENU',
+            routePath: '/system/scheduler',
+            icon: 'Clock',
+            orderNo: 15,
+            valid: 1,
+          },
+          {
             id: 'st-4',
             menuCode: 'SYS_MENU_MGMT',
             menuName: '菜单管理',

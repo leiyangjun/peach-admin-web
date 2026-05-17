@@ -34,6 +34,12 @@ const router = createRouter({
           component: () => import('../views/frame/IframeShellView.vue'),
           meta: { title: '嵌入页' },
         },
+        {
+          path: 'system/scheduler/edit/:id?',
+          name: 'SchedulerEdit',
+          component: () => import('../views/system/SchedulerEditView.vue'),
+          meta: { title: '任务编辑' },
+        },
       ],
     },
   ],

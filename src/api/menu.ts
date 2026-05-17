@@ -1,6 +1,6 @@
 /**
  * 菜单管理 API（经网关访问 peach-common-service，浏览器前缀 /api-common + 管理上下文，默认 /admin）。
- * 相对路径基础段：/menu（树：/menu/tree 有效，/menu/tree/all 全部）；勿再拼一层 /admin，避免与 httpCommon.baseURL 重复。
+ * 相对路径基础段：/menu（树：/menu/tree 有效，/menu/tree/all 全部）；管理前缀已由 httpCommon.baseURL 携带。
  */
 
 import httpCommon from './httpCommon'
@@ -54,4 +54,4 @@ export async function deleteMenuPhysically(id: number | string): Promise<void> {
     throw new Error(body.msg || '删除菜单失败')
   }
 }
-
+

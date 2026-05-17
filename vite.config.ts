@@ -7,12 +7,20 @@ const GATEWAY_TARGET = 'http://127.0.0.1:8090'
 const AUTH_SERVICE_PREFIX = '/peach-auth-service'
 /** 基础业务服务（菜单/用户/角色等），网关路由 /peach-common-service/** */
 const COMMON_SERVICE_PREFIX = '/peach-common-service'
+/** 定时任务服务，网关路由 /peach-job-service/** */
+const JOB_SERVICE_PREFIX = '/peach-job-service'
 
 // https://vite.dev/config/
 export default defineConfig({
 	plugins: [vue()],
 	server: {
 		proxy: {
+			// 浏览器：`/api-job{ADMIN}/...` → 网关：`/peach-job-service{ADMIN}/...`（须写在 `/api` 之前）
+			'/api-job': {
+				target: GATEWAY_TARGET,
+				changeOrigin: true,
+				rewrite: (path) => path.replace(/^\/api-job/, JOB_SERVICE_PREFIX),
+			},
 			// 浏览器：`/{serviceId}{ADMIN}/apis/...`（如 `/peach-common-service/admin/apis/type/admin`）→ 网关同路径，不剥离服务前缀
 			'^/peach-[a-z0-9-]+': {
 				target: GATEWAY_TARGET,

@@ -22,11 +22,22 @@ const props = withDefaults(
     buttonLabel?: string
     /** 标题后缀别名，效果同 buttonLabel */
     titleSuffix?: string
+    /** 自定义拉取 API 列表（如经 job-service 直连微服务）；不传则走网关 */
+    listApis?: (serviceId: string, method?: string, keyword?: string) => Promise<ApiMetaDTO[]>
+    /** 右侧最多条数；定时任务等场景传 1 实现单选 */
+    maxRight?: number
+    /** 固定 HTTP 方法（如 GET），隐藏方法下拉并不再传其它 method */
+    forceHttpMethod?: string
+    /** 打开时优先选中的注册 serviceId（高于列表首项） */
+    initialServiceId?: string
   }>(),
   {
     modelValue: () => [],
     buttonLabel: '',
     titleSuffix: '',
+    maxRight: undefined,
+    forceHttpMethod: '',
+    initialServiceId: '',
   },
 )
 
@@ -61,6 +72,16 @@ const leftPageSize = ref(10)
 
 const httpMethodOptions = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'] as const
 
+const forceMethodLock = computed(() => (props.forceHttpMethod ?? '').trim())
+
+const methodSelectOptions = computed(() => {
+  const f = (props.forceHttpMethod ?? '').trim().toUpperCase()
+  if (f) {
+    return [f] as readonly string[]
+  }
+  return httpMethodOptions
+})
+
 const rightKeySet = computed(() => new Set(rightList.value.map(apiRowKeyFn)))
 
 const leftTotal = computed(() => rawList.value.length)
@@ -83,9 +104,18 @@ async function loadApis() {
   }
   listLoading.value = true
   try {
-    const m = (method.value ?? '').trim()
+    const forced = (props.forceHttpMethod ?? '').trim()
+    const m = forced || (method.value ?? '').trim()
     const kw = (keyword.value ?? '').trim()
-    rawList.value = await fetchGatewayAdminApis(sid, m || undefined, kw || undefined)
+    let list: ApiMetaDTO[]
+    if (props.listApis) {
+      list = await props.listApis(sid, m || undefined, kw || undefined)
+    } else {
+      list = await fetchGatewayAdminApis(sid, m || undefined, kw || undefined)
+    }
+    const only = (props.forceHttpMethod ?? '').trim().toUpperCase()
+    rawList.value =
+      only === 'GET' ? list.filter((a) => (a.method ?? 'GET').toUpperCase() === 'GET') : list
     leftPage.value = 1
   } catch (e) {
     if (!isSessionExpiredError(e)) {
@@ -102,8 +132,11 @@ watch(
   (v) => {
     if (v) {
       const svcs = props.registryServices
-      serviceId.value = svcs.length ? svcs[0]!.serviceId : ''
-      method.value = ''
+      const fromModel = (props.modelValue ?? []).find((x) => (x.serviceName ?? '').trim())?.serviceName?.trim()
+      const initSid =
+        (props.initialServiceId ?? '').trim() || fromModel || (svcs.length ? svcs[0]!.serviceId : '')
+      serviceId.value = initSid
+      method.value = (props.forceHttpMethod ?? '').trim() || ''
       keyword.value = ''
       rightList.value = (props.modelValue ?? []).map((x) => ({ ...x }))
       rawList.value = []
@@ -144,6 +177,13 @@ function onSearch() {
 
 function addLeft(row: ApiMetaDTO) {
   const k = apiRowKeyFn(row)
+  if (props.maxRight === 1) {
+    if (rightList.value.length === 1 && rightList.value.some((r) => apiRowKeyFn(r) === k)) {
+      return
+    }
+    rightList.value = [{ ...row }]
+    return
+  }
   if (rightList.value.some((r) => apiRowKeyFn(r) === k)) {
     return
   }
@@ -170,8 +210,13 @@ onBeforeUnmount(() => {
 })
 
 function onConfirm() {
-  emit('update:modelValue', [...rightList.value])
-  emit('confirm', [...rightList.value])
+  const sid = (serviceId.value ?? '').trim()
+  const stamped = rightList.value.map((r) => ({
+    ...r,
+    serviceName: (r.serviceName ?? '').trim() || sid || undefined,
+  }))
+  emit('update:modelValue', [...stamped])
+  emit('confirm', [...stamped])
   innerVisible.value = false
 }
 
@@ -202,9 +247,15 @@ function onCancel() {
             :value="s.serviceId"
           />
         </el-select>
-        <el-select v-model="method" clearable placeholder="HTTP 方法" class="api-method">
+        <el-select
+          v-if="!forceMethodLock"
+          v-model="method"
+          clearable
+          placeholder="HTTP 方法"
+          class="api-method"
+        >
           <el-option label="全部" value="" />
-          <el-option v-for="m in httpMethodOptions" :key="m" :label="m" :value="m" />
+          <el-option v-for="m in methodSelectOptions" :key="m" :label="m" :value="m" />
         </el-select>
         <el-input
           v-model="keyword"
