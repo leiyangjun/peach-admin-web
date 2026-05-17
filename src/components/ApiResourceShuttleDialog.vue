@@ -4,6 +4,7 @@
  */
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../constants/cmnButton'
 import { fetchGatewayAdminApis } from '../api/permission'
 import type { ApiMetaDTO, RegistryServiceItem } from '../models/permission'
 import { isSessionExpiredError } from '../utils/sessionExpired'
@@ -264,7 +265,7 @@ function onCancel() {
           class="api-kw"
           @keyup.enter="onSearch"
         />
-        <el-button type="primary" :loading="listLoading" @click="onSearch">搜索</el-button>
+        <el-button type="primary" :loading="listLoading" @click="onSearch">{{ CMN_BUTTON_LABEL[CMN_BUTTON.QUERY] }}</el-button>
       </div>
       <div class="shuttle-body">
         <div class="shuttle-col">
@@ -325,8 +326,10 @@ function onCancel() {
       </div>
     </template>
     <template #footer>
-      <el-button @click="onCancel">取消</el-button>
-      <el-button type="primary" :disabled="!registryServices.length" @click="onConfirm">确定</el-button>
+      <el-button @click="onCancel">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
+      <el-button type="primary" :disabled="!registryServices.length" @click="onConfirm">
+        {{ CMN_BUTTON_LABEL[CMN_BUTTON.SAVE] }}
+      </el-button>
     </template>
   </el-dialog>
 </template>

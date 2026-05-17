@@ -4,6 +4,8 @@
  */
 import { computed, ref } from 'vue'
 import { Delete, Edit, Plus } from '@element-plus/icons-vue'
+import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
+import { useButtonPermission } from '../../composables/useButtonPermission'
 import type { ElSelect, FormInstance, TableColumnCtx } from 'element-plus'
 import { useDictController } from '../../controllers/system/useDictController'
 import { DICT_LIST_CLASS_TAG_OPTIONS, listClassToElTagType } from '../../models/dictMgmt'
@@ -36,6 +38,8 @@ const {
   onToggleStatus,
   confirmHardDelete,
 } = useDictController()
+
+const { hasButton } = useButtonPermission()
 
 /** 当前页内：按类型再按排序号稳定排序，便于相邻同类型合并；与接口顺序不一致时以展示顺序为准 */
 function sortRowsForDisplay(rows: DictMgmtVO[]): DictMgmtVO[] {
@@ -206,11 +210,11 @@ const onSaveDict = async () => {
             </el-select>
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" @click="onSearch">查询</el-button>
-            <el-button @click="onReset">重置</el-button>
+            <el-button v-if="hasButton(CMN_BUTTON.QUERY)" type="primary" @click="onSearch">{{ CMN_BUTTON_LABEL[CMN_BUTTON.QUERY] }}</el-button>
+            <el-button v-if="hasButton(CMN_BUTTON.RESET)" @click="onReset">{{ CMN_BUTTON_LABEL[CMN_BUTTON.RESET] }}</el-button>
           </el-form-item>
-          <el-form-item class="right-btn">
-            <el-button type="success" :icon="Plus" @click="openCreate">新增</el-button>
+          <el-form-item v-if="hasButton(CMN_BUTTON.ADD)" class="right-btn">
+            <el-button type="success" :icon="Plus" @click="openCreate">{{ CMN_BUTTON_LABEL[CMN_BUTTON.ADD] }}</el-button>
           </el-form-item>
         </el-form>
       </div>
@@ -259,16 +263,20 @@ const onSaveDict = async () => {
         <el-table-column prop="remark" label="备注" min-width="100" show-overflow-tooltip />
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-switch :model-value="row.status === 1" @change="(v: boolean) => onToggleStatus(row, v)" />
+            <el-switch
+              v-if="hasButton(CMN_BUTTON.ENABLE) || hasButton(CMN_BUTTON.DISABLE)"
+              :model-value="row.status === 1"
+              @change="(v: boolean) => onToggleStatus(row, v)"
+            />
           </template>
         </el-table-column>
         <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row }">
             <span class="dict-table-ops">
-              <el-tooltip content="编辑" placement="top">
+              <el-tooltip v-if="hasButton(CMN_BUTTON.EDIT)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.EDIT]" placement="top">
                 <el-button type="primary" link :icon="Edit" @click="openEdit(row)" />
               </el-tooltip>
-              <el-tooltip content="物理删除" placement="top">
+              <el-tooltip v-if="hasButton(CMN_BUTTON.DELETE)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.DELETE]" placement="top">
                 <el-button type="danger" link :icon="Delete" @click="confirmHardDelete(row)" />
               </el-tooltip>
             </span>
@@ -397,8 +405,10 @@ const onSaveDict = async () => {
         </div>
       </div>
       <template #footer>
-        <el-button @click="drawerVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="onSaveDict">保存</el-button>
+        <el-button v-if="hasButton(CMN_BUTTON.CANCEL)" @click="drawerVisible = false">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
+        <el-button v-if="hasButton(CMN_BUTTON.SAVE)" type="primary" :loading="submitLoading" @click="onSaveDict">
+          {{ CMN_BUTTON_LABEL[CMN_BUTTON.SAVE] }}
+        </el-button>
       </template>
     </el-drawer>
   </div>

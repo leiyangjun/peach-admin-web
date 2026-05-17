@@ -7,6 +7,7 @@ import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import type { ElTable } from 'element-plus'
 import { ElMessage } from 'element-plus'
 
+import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
 import { fetchGatewayAdminApis } from '../../api/permission'
 import type { ApiMetaDTO, RegistryServiceItem } from '../../models/permission'
 import { isSessionExpiredError } from '../../utils/sessionExpired'
@@ -230,7 +231,7 @@ defineExpose({
         class="admin-api-picker-keyword"
         @keyup.enter="onKeywordEnter"
       />
-      <el-button type="primary" :loading="listLoading" @click="onSearchClick">搜索</el-button>
+      <el-button type="primary" :loading="listLoading" @click="onSearchClick">{{ CMN_BUTTON_LABEL[CMN_BUTTON.QUERY] }}</el-button>
     </div>
     <el-table
       ref="tableRef"

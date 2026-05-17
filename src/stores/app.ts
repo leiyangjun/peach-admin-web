@@ -45,5 +45,9 @@ export const useAppStore = defineStore('app', {
       const fallback: TabItem = { path: '/dashboard', title: '首页', closable: false, name: 'Dashboard' }
       this.tabs = tabs.length ? tabs : [fallback]
     },
+    /** 登出或切换账号时恢复为仅首页 */
+    resetTabs() {
+      this.tabs = [{ path: '/dashboard', title: '首页', closable: false, name: 'Dashboard' }]
+    },
   },
 })

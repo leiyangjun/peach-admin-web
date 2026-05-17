@@ -1,5 +1,5 @@
 /**
- * 定时任务管理：分页列表、名称/描述筛选、调度操作与执行日志抽屉。
+ * 定时任务管理：分页列表、关键字模糊筛选、调度操作与执行日志抽屉。
  */
 
 import { ref, watch } from 'vue'
@@ -24,8 +24,7 @@ export function isJobTaskPaused(row: JobTaskVO): boolean {
 export function useSchedulerController() {
   const router = useRouter()
 
-  const jobNameQuery = ref('')
-  const jobDescriptionQuery = ref('')
+  const keyword = ref('')
   const page = ref(1)
   const pageSize = ref(10)
   const total = ref(0)
@@ -39,22 +38,15 @@ export function useSchedulerController() {
   const logTitle = ref('执行日志')
 
   const buildPageQuery = (): JobPageQuery => {
-    const name = jobNameQuery.value.trim()
-    const desc = jobDescriptionQuery.value.trim()
+    const kw = keyword.value.trim()
     const base: JobPageQuery = {
       pageNum: page.value,
       pageSize: pageSize.value,
       sortName: 'editTime',
       sortType: 'desc',
     }
-    if (name && desc) {
-      return { ...base, jobName: name, jobDescription: desc }
-    }
-    if (name) {
-      return { ...base, searchValue: name }
-    }
-    if (desc) {
-      return { ...base, searchValue: desc }
+    if (kw) {
+      return { ...base, searchValue: kw }
     }
     return base
   }
@@ -88,8 +80,7 @@ export function useSchedulerController() {
   }
 
   const onReset = () => {
-    jobNameQuery.value = ''
-    jobDescriptionQuery.value = ''
+    keyword.value = ''
     page.value = 1
     void loadList()
   }
@@ -179,8 +170,7 @@ export function useSchedulerController() {
   }
 
   return {
-    jobNameQuery,
-    jobDescriptionQuery,
+    keyword,
     page,
     pageSize,
     total,

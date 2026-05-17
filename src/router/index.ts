@@ -1,7 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { usePermissionStore } from '../stores/permission'
 import { STATIC_SIDEBAR_MENU_TREE } from '../config/staticSidebarMenus'
-import { clearRegisteredMenuRoutes, registerStaticSidebarMenuBundleOnce } from './dynamicMenuRoutes'
+import {
+  clearRegisteredMenuRoutes,
+  registerPermissionMenuBundleOnce,
+  registerStaticSidebarMenuBundleOnce,
+} from './dynamicMenuRoutes'
 
 /**
  * 主布局 name 固定为 AdminShell，供 {@link ./dynamicMenuRoutes} 动态 addRoute。
@@ -45,7 +50,7 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
   if (to.path === '/login') {
     if (!authStore.isAuthenticated) {
@@ -62,8 +67,26 @@ router.beforeEach((to, _from, next) => {
     next('/login')
     return
   }
-  const justRegistered = registerStaticSidebarMenuBundleOnce(router, STATIC_SIDEBAR_MENU_TREE)
-  // 动态 addRoute 后必须重走当前 location，否则新窗口直达 /system/xxx 等 matched 仍为空
+
+  const permissionStore = usePermissionStore()
+  if (!permissionStore.loaded && !permissionStore.loading) {
+    try {
+      await permissionStore.loadCurrentUserPermission()
+    } catch {
+      // 权限加载失败时回退写死侧栏，避免白屏
+    }
+  }
+
+  const menuTree =
+    permissionStore.loaded && permissionStore.menuTree.length > 0
+      ? permissionStore.menuTree
+      : STATIC_SIDEBAR_MENU_TREE
+
+  const justRegistered =
+    permissionStore.loaded && permissionStore.menuTree.length > 0
+      ? registerPermissionMenuBundleOnce(router, menuTree)
+      : registerStaticSidebarMenuBundleOnce(router, menuTree)
+
   if (justRegistered) {
     next({ ...to, replace: true })
     return

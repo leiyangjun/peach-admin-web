@@ -9,14 +9,14 @@ import { ElMessage, type FormRules } from 'element-plus'
 import { Expand, Fold } from '@element-plus/icons-vue'
 import { useAuthStore } from '../../stores/auth'
 import { useAppStore } from '../../stores/app'
+import { usePermissionStore } from '../../stores/permission'
 import { STATIC_SIDEBAR_MENU_TREE } from '../../config/staticSidebarMenus'
 import type { PasswordFormModel, ProfileFormModel } from '../../models/auth'
 import { openExternalPage, openInternalRouteInNewWindow } from '../../utils/navigation'
 import { parseMenuRoutePath } from '../../utils/menuRoutePath'
 import { findMenuTitleByRoutePath } from '../../utils/menuTreeWalk'
-import { clearRegisteredMenuRoutes } from '../../router/dynamicMenuRoutes'
+import { resetFullUserSession } from '../../utils/userSessionReset'
 import {
-  clearPersistedOpenTabs,
   loadPersistedOpenTabs,
   persistedToTabItems,
   savePersistedOpenTabs,
@@ -29,8 +29,13 @@ export function useLayoutController() {
   const router = useRouter()
   const authStore = useAuthStore()
   const appStore = useAppStore()
-  /** 侧栏数据源：写死树，不依赖登录后菜单接口 */
-  const menuTree = STATIC_SIDEBAR_MENU_TREE
+  const permissionStore = usePermissionStore()
+  /** 侧栏：优先使用登录后权限菜单，未加载时回退写死树 */
+  const menuTree = computed(() =>
+    permissionStore.loaded && permissionStore.menuTree.length > 0
+      ? permissionStore.menuTree
+      : STATIC_SIDEBAR_MENU_TREE,
+  )
 
   /** 刷新后恢复页签：动态路由已在 router.beforeEach 中注册完毕后再进入布局 */
   const persistedTabs = loadPersistedOpenTabs()
@@ -134,8 +139,7 @@ export function useLayoutController() {
   )
 
   const handleLogout = () => {
-    clearRegisteredMenuRoutes(router)
-    clearPersistedOpenTabs()
+    resetFullUserSession(router)
     authStore.logout()
     ElMessage.success('已退出登录')
     router.replace('/login')
@@ -184,7 +188,7 @@ export function useLayoutController() {
     if (!parsed) {
       return
     }
-    const title = findMenuTitleByRoutePath(menuTree, index) ?? '页面'
+    const title = findMenuTitleByRoutePath(menuTree.value, index) ?? '页面'
     if (parsed.kind === 'internal') {
       void router.push(parsed.path)
       return

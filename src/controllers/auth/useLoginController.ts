@@ -17,7 +17,7 @@ import { ElMessage } from 'element-plus'
 import { fetchSliderChallenge } from '../../api/auth'
 
 import { useAuthStore } from '../../stores/auth'
-
+import { resetUserUiSession } from '../../utils/userSessionReset'
 import { getRequestErrorMessage } from '../../utils/httpError'
 
 import type { LoginFormModel, SliderChallenge } from '../../models/auth'
@@ -139,6 +139,9 @@ export function useLoginController() {
         remember: form.remember,
 
       })
+
+      /** 切换账号登录：清除上一用户的页签与动态路由，权限已在 login 内重新加载 */
+      resetUserUiSession(router)
 
       ElMessage.success('登录成功')
 

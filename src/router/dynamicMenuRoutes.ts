@@ -15,6 +15,9 @@ const registeredRouteNames: string[] = []
 /** 写死侧栏菜单是否已整包注册过（登出或清理由 {@link clearRegisteredMenuRoutes} 复位） */
 let staticSidebarBundleRegistered = false
 
+/** 用户权限菜单是否已注册（与写死侧栏互斥复位） */
+let permissionMenuBundleRegistered = false
+
 /**
  * 将写死菜单树注册为 AdminShell 子路由，全会话仅执行一次。
  * @returns 本次是否新完成注册；为 true 时调用方应在导航守卫里 `next({ ...to, replace: true })`，
@@ -29,10 +32,23 @@ export function registerStaticSidebarMenuBundleOnce(router: Router, tree: MenuMg
   return true
 }
 
+/**
+ * 将当前用户权限菜单树注册为 AdminShell 子路由，全会话仅执行一次。
+ */
+export function registerPermissionMenuBundleOnce(router: Router, tree: MenuMgmtVO[]): boolean {
+  if (permissionMenuBundleRegistered) {
+    return false
+  }
+  registerRoutesFromMenuTree(router, tree, 'AdminShell')
+  permissionMenuBundleRegistered = true
+  return true
+}
+
 /** 卸载动态子路由并允许下次再次注册写死侧栏包 */
 export function clearRegisteredMenuRoutes(router: Router): void {
   unregisterDynamicMenuRoutes(router)
   staticSidebarBundleRegistered = false
+  permissionMenuBundleRegistered = false
 }
 
 /** 与 AdminShell 静态子路由冲突的 path 前缀，动态注册时跳过 */
@@ -91,7 +107,7 @@ export function registerRoutesFromMenuTree(router: Router, tree: MenuMgmtVO[], p
       path: childPath,
       name: routeName,
       component: loader,
-      meta: { title: m.menuName ?? '页面' },
+      meta: { title: m.menuName ?? '页面', menuCode: m.menuCode },
     }
     router.addRoute(parentName, record)
     registeredRouteNames.push(routeName)

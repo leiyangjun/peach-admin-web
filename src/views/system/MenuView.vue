@@ -9,6 +9,8 @@ import { useMenuController } from '../../controllers/system/useMenuController'
 import { useMenuPermission } from '../../controllers/system/useMenuPermission'
 import DictButtonShuttleDialog from '../../components/DictButtonShuttleDialog.vue'
 import ApiResourceShuttleDialog from '../../components/ApiResourceShuttleDialog.vue'
+import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
+import { useButtonPermission } from '../../composables/useButtonPermission'
 import { MENU_ICON_OPTIONS, type MenuIconOption } from '../../constants/menuIconOptions'
 import type { MenuMgmtButtonBindingItem, MenuMgmtVO } from '../../models/menuMgmt'
 import type { MenuButtonPickerRow } from '../../models/permission'
@@ -73,6 +75,8 @@ const {
   apiRowKeyFn,
   abortCreateDraft,
 } = perm
+
+const { hasButton } = useButtonPermission()
 
 /** 新建中途再点「新增」：先丢弃按钮草稿再打开空表单 */
 function openCreateMenu(parentIdOverride?: string | number | null) {
@@ -192,11 +196,11 @@ watch(
                 <template #default="{ data }">
                   <div class="menu-tree-node">
                     <span :class="menuTreeLabelClass(data)">{{ data.menuName }}</span>
-                    <el-tooltip content="在此节点下新增子菜单" placement="right">
+                    <el-tooltip v-if="hasButton(CMN_BUTTON.ADD)" :content="`在此节点下${CMN_BUTTON_LABEL[CMN_BUTTON.ADD]}子菜单`" placement="right">
                       <button
                         type="button"
                         class="menu-tree-add-btn"
-                        aria-label="新增子菜单"
+                        :aria-label="`${CMN_BUTTON_LABEL[CMN_BUTTON.ADD]}子菜单`"
                         @click.stop="openCreateMenu(data.id)"
                       >
                         <el-icon><Plus /></el-icon>
@@ -214,7 +218,7 @@ watch(
                 </template>
               </el-empty>
             </div>
-            <el-tooltip content="在此新增一级菜单" placement="top" class="menu-tree-root-add-tip">
+            <el-tooltip v-if="hasButton(CMN_BUTTON.ADD)" :content="`在此${CMN_BUTTON_LABEL[CMN_BUTTON.ADD]}一级菜单`" placement="top" class="menu-tree-root-add-tip">
               <button type="button" class="menu-tree-root-add" aria-label="新增一级菜单" @click="openCreateMenu(0)">
                 <el-icon><Plus /></el-icon>
               </button>
@@ -370,7 +374,7 @@ watch(
                     <el-row :gutter="12" class="menu-perm-split">
                       <el-col :xs="24" :sm="9" :md="9">
                         <div class="perm-left-col-stack">
-                          <el-tooltip content="绑定按钮" placement="top" class="perm-button-add-tip">
+                          <el-tooltip v-if="hasButton(CMN_BUTTON.BIND_BUTTON)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.BIND_BUTTON]" placement="top" class="perm-button-add-tip">
                             <button
                               type="button"
                               class="perm-button-table-add"
@@ -403,13 +407,14 @@ watch(
                             <el-table-column label="操作" width="56" fixed="right">
                               <template #default="{ row }">
                                 <el-button
+                                  v-if="hasButton(CMN_BUTTON.DELETE)"
                                   type="danger"
                                   link
                                   size="small"
                                   :disabled="permLoading"
                                   @click.stop="removeMenuButtonRow(row)"
                                 >
-                                  删除
+                                  {{ CMN_BUTTON_LABEL[CMN_BUTTON.DELETE] }}
                                 </el-button>
                               </template>
                             </el-table-column>
@@ -471,11 +476,11 @@ watch(
 
             <div class="form-footer-bar">
               <div class="footer-actions">
-                <el-button v-if="panelMode === 'edit' && formModel.id" type="danger" plain @click="onDelete">
-                  删除
+                <el-button v-if="panelMode === 'edit' && formModel.id && hasButton(CMN_BUTTON.DELETE)" type="danger" plain @click="onDelete">
+                  {{ CMN_BUTTON_LABEL[CMN_BUTTON.DELETE] }}
                 </el-button>
-                <el-button @click="cancelPanel">取消</el-button>
-                <el-button type="primary" @click="submitForm">提交</el-button>
+                <el-button v-if="hasButton(CMN_BUTTON.CANCEL)" @click="cancelPanel">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
+                <el-button v-if="hasButton(CMN_BUTTON.SUBMIT)" type="primary" @click="submitForm">{{ CMN_BUTTON_LABEL[CMN_BUTTON.SUBMIT] }}</el-button>
               </div>
             </div>
           </div>

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { loginWithPassword } from '../api/auth'
 import type { LoginPayload, UserInfo } from '../models/auth'
 import { decodeJwtPayload } from '../utils/jwt'
+import { usePermissionStore } from './permission'
 
 /**
  * 认证状态仓库（Store）：持久化 token 与当前登录用户。
@@ -49,6 +50,7 @@ export const useAuthStore = defineStore('auth', {
         nickname: displayName,
       }
       localStorage.setItem(USER_KEY, JSON.stringify(this.user))
+      await usePermissionStore().loadCurrentUserPermission()
     },
     logout() {
       this.token = ''
