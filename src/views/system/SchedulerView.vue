@@ -13,6 +13,12 @@ import {
 } from '@element-plus/icons-vue'
 import { isInternalJobType } from '../../models/jobTask'
 import { isJobTaskPaused, useSchedulerController } from '../../controllers/system/useSchedulerController'
+import { formatDateTime } from '../../utils/dateTime'
+
+/** HTTP 状态是否为成功（仅 200 视为成功） */
+function isHttpStatusSuccess(status: number | null | undefined): boolean {
+  return status === 200
+}
 
 const {
   jobNameQuery,
@@ -141,8 +147,21 @@ const {
     <el-drawer v-model="logDrawerVisible" :title="logTitle" size="min(900px, 96vw)" destroy-on-close>
       <el-table v-loading="logLoading" :data="logRows" border size="small" max-height="calc(100vh - 220px)">
         <el-table-column type="index" label="次序" width="70" />
-        <el-table-column prop="httpstatus" label="状态" width="100" />
-        <el-table-column prop="createTime" label="开始" width="180" />
+        <el-table-column label="状态" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag
+              size="small"
+              :type="isHttpStatusSuccess(row.httpstatus) ? 'success' : 'danger'"
+            >
+              {{ row.httpstatus ?? '—' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="开始" width="180">
+          <template #default="{ row }">
+            {{ formatDateTime(row.createTime) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="exeTime" label="耗时(ms)" width="100" />
         <el-table-column prop="responseMsg" label="信息" min-width="200" show-overflow-tooltip />
         <el-table-column prop="jobApi" label="API" width="160" show-overflow-tooltip />

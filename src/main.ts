@@ -3,6 +3,8 @@ import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'
 import { ElMessage } from 'element-plus'
 import 'element-plus/dist/index.css'
+import NoVue3CronLib from 'no-vue3-cron'
+import 'no-vue3-cron/lib/noVue3Cron.css'
 
 import App from './App.vue'
 import router from './router'
@@ -16,6 +18,7 @@ const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 app.use(ElementPlus)
+app.use(NoVue3CronLib.default)
 
 /** 401 时登出并回登录页（须在 pinia / router 挂载后注册） */
 registerSessionExpiredHandler((msg) => {
