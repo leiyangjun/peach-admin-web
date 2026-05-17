@@ -9,6 +9,7 @@ import { ADMIN_API_PATH_PREFIX } from '../config/adminApiPrefix'
 import { isPeachSuccess } from '../utils/apiResult'
 import type { ApiEnvelope } from '../models/auth'
 import type { ApiMetaDTO, ButtonDictVO, MenuButtonPickerRow, RegistryServiceItem } from '../models/permission'
+import type { CurrentUserPermissionVO } from '../models/currentUserPermission'
 
 const BASE = '/permission'
 
@@ -113,6 +114,14 @@ export async function replaceRoleMenuButtons(roleId: string | number, menuButton
   if (!isPeachSuccess(body.code)) {
     throw new Error(body.msg || '保存角色按钮失败')
   }
+}
+
+export async function fetchCurrentUserPermission(): Promise<CurrentUserPermissionVO> {
+  const { data: body } = await httpCommon.get<ApiEnvelope<CurrentUserPermissionVO>>(`${BASE}/current-user`)
+  if (!isPeachSuccess(body.code) || body.data == null) {
+    throw new Error(body.msg || '加载当前用户权限失败')
+  }
+  return body.data
 }
 
 export async function fetchMenuButtonsRolePicker(): Promise<MenuButtonPickerRow[]> {

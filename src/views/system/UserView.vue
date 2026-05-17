@@ -5,6 +5,8 @@
  */
 
 import { Delete, Edit, Key, Plus, View } from '@element-plus/icons-vue'
+import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
+import { useButtonPermission } from '../../composables/useButtonPermission'
 import { useUserController } from '../../controllers/system/useUserController'
 
 const {
@@ -38,6 +40,8 @@ const {
   submitResetPassword,
 } = useUserController()
 
+const { hasButton } = useButtonPermission()
+
 function userTypeLabel(t: string | undefined) {
   if (t === 'system') {
     return '系统用户'
@@ -64,11 +68,11 @@ function userTypeLabel(t: string | undefined) {
             />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" @click="onSearch">查询</el-button>
-            <el-button @click="onReset">重置</el-button>
+            <el-button v-if="hasButton(CMN_BUTTON.QUERY)" type="primary" @click="onSearch">{{ CMN_BUTTON_LABEL[CMN_BUTTON.QUERY] }}</el-button>
+            <el-button v-if="hasButton(CMN_BUTTON.RESET)" @click="onReset">{{ CMN_BUTTON_LABEL[CMN_BUTTON.RESET] }}</el-button>
           </el-form-item>
-          <el-form-item class="right-btn">
-            <el-button type="success" :icon="Plus" @click="openCreate">新增</el-button>
+          <el-form-item v-if="hasButton(CMN_BUTTON.ADD)" class="right-btn">
+            <el-button type="success" :icon="Plus" @click="openCreate">{{ CMN_BUTTON_LABEL[CMN_BUTTON.ADD] }}</el-button>
           </el-form-item>
         </el-form>
       </div>
@@ -97,17 +101,17 @@ function userTypeLabel(t: string | undefined) {
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <span class="user-table-ops">
-              <el-tooltip content="详情" placement="top">
+              <el-tooltip v-if="hasButton(CMN_BUTTON.DEFAULT)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.DEFAULT]" placement="top">
                 <el-button type="primary" link :icon="View" @click="openDetail(row)" />
               </el-tooltip>
               <template v-if="isSystemUser(row)">
-                <el-tooltip content="编辑" placement="top">
+                <el-tooltip v-if="hasButton(CMN_BUTTON.EDIT)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.EDIT]" placement="top">
                   <el-button type="primary" link :icon="Edit" @click="openEdit(row)" />
                 </el-tooltip>
-                <el-tooltip content="重置密码" placement="top">
+                <el-tooltip v-if="hasButton(CMN_BUTTON.RESET_PASSWORD)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.RESET_PASSWORD]" placement="top">
                   <el-button type="warning" link :icon="Key" @click="openResetPassword(row)" />
                 </el-tooltip>
-                <el-tooltip content="物理删除" placement="top">
+                <el-tooltip v-if="hasButton(CMN_BUTTON.DELETE)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.DELETE]" placement="top">
                   <el-button type="danger" link :icon="Delete" @click="confirmHardDelete(row)" />
                 </el-tooltip>
               </template>
@@ -186,12 +190,16 @@ function userTypeLabel(t: string | undefined) {
       </el-form>
       <template #footer>
         <template v-if="formReadonly">
-          <el-button @click="dialogVisible = false">关闭</el-button>
-          <el-button v-if="isSystemUser(userForm)" type="primary" @click="enterEditFromView">编辑</el-button>
+          <el-button v-if="hasButton(CMN_BUTTON.CANCEL)" @click="dialogVisible = false">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
+          <el-button v-if="isSystemUser(userForm) && hasButton(CMN_BUTTON.EDIT)" type="primary" @click="enterEditFromView">
+            {{ CMN_BUTTON_LABEL[CMN_BUTTON.EDIT] }}
+          </el-button>
         </template>
         <template v-else>
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" :loading="submitLoading" @click="onSubmit">确定</el-button>
+          <el-button v-if="hasButton(CMN_BUTTON.CANCEL)" @click="dialogVisible = false">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
+          <el-button v-if="hasButton(CMN_BUTTON.SAVE)" type="primary" :loading="submitLoading" @click="onSubmit">
+            {{ CMN_BUTTON_LABEL[CMN_BUTTON.SAVE] }}
+          </el-button>
         </template>
       </template>
     </el-dialog>
@@ -206,8 +214,10 @@ function userTypeLabel(t: string | undefined) {
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="resetPwdVisible = false">取消</el-button>
-        <el-button type="primary" :loading="resetPwdLoading" @click="submitResetPassword">确定</el-button>
+        <el-button v-if="hasButton(CMN_BUTTON.CANCEL)" @click="resetPwdVisible = false">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
+        <el-button v-if="hasButton(CMN_BUTTON.SAVE)" type="primary" :loading="resetPwdLoading" @click="submitResetPassword">
+          {{ CMN_BUTTON_LABEL[CMN_BUTTON.SAVE] }}
+        </el-button>
       </template>
     </el-dialog>
   </div>

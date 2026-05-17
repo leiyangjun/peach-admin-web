@@ -25,7 +25,7 @@ import {
 } from '../../api/permission'
 import { isSessionExpiredError } from '../../utils/sessionExpired'
 
-const VIEW_CODE = 'BTN_VIEW'
+const VIEW_CODE = 'BTN_DEFAULT'
 const DRAFT_ROW_PREFIX = '__draft__'
 
 function newDraftTempKey(): string {
@@ -447,7 +447,7 @@ export function useMenuPermission(
   }
 
   /**
-   * 组装与 POST /menu 对齐的 buttonBindings；目录传空数组由服务端仅写入 BTN_VIEW。
+   * 组装与 POST /menu 对齐的 buttonBindings；目录传空数组由服务端仅写入 BTN_DEFAULT。
    */
   function buildButtonBindingsForMenuSave(): MenuMgmtButtonBindingItem[] {
     const t = formModel.value.menuType

@@ -8,7 +8,7 @@ import type { MenuMgmtVO } from '../models/menuMgmt'
 import type { MenuButtonPickerRow } from '../models/permission'
 
 /** 与菜单配置、字典一致：查看按钮编码 */
-export const ROLE_BIND_VIEW_BUTTON_CODE = 'BTN_VIEW'
+export const ROLE_BIND_VIEW_BUTTON_CODE = 'BTN_DEFAULT'
 
 export interface MenuBindTreeRow {
   id: string

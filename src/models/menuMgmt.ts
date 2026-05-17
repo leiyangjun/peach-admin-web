@@ -32,7 +32,7 @@ export interface MenuMgmtVO {
   children?: MenuMgmtVO[] | null
   /**
    * 非 undefined 时与 POST /menu 一并提交，服务端与菜单同事务写入按钮+API。
-   * 目录 CATALOG 传空数组即可（服务端仅保留隐式 BTN_VIEW）；不传该字段表示不修改绑定（兼容旧客户端）。
+   * 目录 CATALOG 传空数组即可（服务端仅保留隐式 BTN_DEFAULT）；不传该字段表示不修改绑定（兼容旧客户端）。
    */
   buttonBindings?: MenuMgmtButtonBindingItem[] | null
 }

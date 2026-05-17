@@ -14,6 +14,8 @@ import { formTypeToJobType, jobTypeToFormType } from '../../models/jobTask'
 import { fetchJobTaskById, pauseJobTask, resumeJobTask, saveJobTask } from '../../api/jobTask'
 import { fetchRegistryServices } from '../../api/permission'
 import { useAppStore } from '../../stores/app'
+import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
+import { useButtonPermission } from '../../composables/useButtonPermission'
 import { normalizeQuartzCron } from '../../utils/quartzCron'
 
 const route = useRoute()
@@ -22,6 +24,8 @@ const appStore = useAppStore()
 
 /** 定时任务列表页路径（与菜单 routePath、动态路由一致） */
 const SCHEDULER_LIST_PATH = '/system/scheduler'
+
+const { hasButton } = useButtonPermission(SCHEDULER_LIST_PATH)
 
 const loading = ref(false)
 const submitLoading = ref(false)
@@ -710,16 +714,18 @@ onMounted(async () => {
 
         <div class="scheduler-edit-footer form-footer-bar">
           <div class="footer-actions">
-            <el-button @click="closeCurrentTab">取消</el-button>
-            <el-button type="primary" :loading="submitLoading" @click="onSubmit">保存</el-button>
+            <el-button v-if="hasButton(CMN_BUTTON.CANCEL)" @click="closeCurrentTab">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
+            <el-button v-if="hasButton(CMN_BUTTON.SAVE)" type="primary" :loading="submitLoading" @click="onSubmit">
+              {{ CMN_BUTTON_LABEL[CMN_BUTTON.SAVE] }}
+            </el-button>
             <el-button
-              v-if="isEdit && form.id"
+              v-if="isEdit && form.id && (hasButton(CMN_BUTTON.PAUSE) || hasButton(CMN_BUTTON.RESUME))"
               :type="form.enabled ? 'warning' : 'success'"
               :loading="toggleLoading"
               plain
               @click="onToggleEnabled"
             >
-              {{ form.enabled ? '暂停' : '恢复' }}
+              {{ form.enabled ? CMN_BUTTON_LABEL[CMN_BUTTON.PAUSE] : CMN_BUTTON_LABEL[CMN_BUTTON.RESUME] }}
             </el-button>
           </div>
         </div>

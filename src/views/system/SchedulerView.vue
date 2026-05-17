@@ -11,6 +11,8 @@ import {
   VideoPause,
   VideoPlay,
 } from '@element-plus/icons-vue'
+import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
+import { useButtonPermission } from '../../composables/useButtonPermission'
 import { isInternalJobType } from '../../models/jobTask'
 import { isJobTaskPaused, useSchedulerController } from '../../controllers/system/useSchedulerController'
 import { formatDateTime } from '../../utils/dateTime'
@@ -21,8 +23,7 @@ function isHttpStatusSuccess(status: number | null | undefined): boolean {
 }
 
 const {
-  jobNameQuery,
-  jobDescriptionQuery,
+  keyword,
   page,
   pageSize,
   total,
@@ -43,6 +44,8 @@ const {
   openLogs,
   refreshLogs,
 } = useSchedulerController()
+
+const { hasButton } = useButtonPermission()
 </script>
 
 <template>
@@ -50,30 +53,21 @@ const {
     <el-card shadow="never" class="page-list-card">
       <div class="page-list-toolbar">
         <el-form :inline="true" @submit.prevent>
-          <el-form-item label="任务名称">
+          <el-form-item label="关键字">
             <el-input
-              v-model="jobNameQuery"
+              v-model="keyword"
               clearable
-              placeholder="任务名称"
-              style="width: 180px"
-              @keyup.enter="onSearch"
-            />
-          </el-form-item>
-          <el-form-item label="描述">
-            <el-input
-              v-model="jobDescriptionQuery"
-              clearable
-              placeholder="任务描述"
-              style="width: 200px"
+              placeholder="任务名称 / 描述"
+              style="width: 260px"
               @keyup.enter="onSearch"
             />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" @click="onSearch">查询</el-button>
-            <el-button @click="onReset">重置</el-button>
+            <el-button v-if="hasButton(CMN_BUTTON.QUERY)" type="primary" @click="onSearch">{{ CMN_BUTTON_LABEL[CMN_BUTTON.QUERY] }}</el-button>
+            <el-button v-if="hasButton(CMN_BUTTON.RESET)" @click="onReset">{{ CMN_BUTTON_LABEL[CMN_BUTTON.RESET] }}</el-button>
           </el-form-item>
-          <el-form-item class="right-btn">
-            <el-button type="success" :icon="Plus" @click="goCreate">新建任务</el-button>
+          <el-form-item v-if="hasButton(CMN_BUTTON.ADD)" class="right-btn">
+            <el-button type="success" :icon="Plus" @click="goCreate">{{ CMN_BUTTON_LABEL[CMN_BUTTON.ADD] }}</el-button>
           </el-form-item>
         </el-form>
       </div>
@@ -109,22 +103,22 @@ const {
         <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <span class="scheduler-table-ops">
-              <el-tooltip content="编辑" placement="top">
+              <el-tooltip v-if="hasButton(CMN_BUTTON.EDIT)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.EDIT]" placement="top">
                 <el-button type="primary" link :icon="Edit" @click="goEdit(row)" />
               </el-tooltip>
-              <el-tooltip content="日志" placement="top">
+              <el-tooltip v-if="hasButton(CMN_BUTTON.LOG)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.LOG]" placement="top">
                 <el-button type="primary" link :icon="Document" @click="openLogs(row)" />
               </el-tooltip>
-              <el-tooltip v-if="!isJobTaskPaused(row)" content="暂停" placement="top">
+              <el-tooltip v-if="!isJobTaskPaused(row) && hasButton(CMN_BUTTON.PAUSE)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.PAUSE]" placement="top">
                 <el-button type="warning" link :icon="VideoPause" @click="onPause(row)" />
               </el-tooltip>
-              <el-tooltip v-else content="恢复" placement="top">
+              <el-tooltip v-else-if="isJobTaskPaused(row) && hasButton(CMN_BUTTON.RESUME)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.RESUME]" placement="top">
                 <el-button type="success" link :icon="VideoPlay" @click="onResume(row)" />
               </el-tooltip>
-              <el-tooltip content="触发" placement="top">
+              <el-tooltip v-if="hasButton(CMN_BUTTON.TRIGGER)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.TRIGGER]" placement="top">
                 <el-button type="primary" link :icon="Promotion" @click="onTrigger(row)" />
               </el-tooltip>
-              <el-tooltip content="删除" placement="top">
+              <el-tooltip v-if="hasButton(CMN_BUTTON.DELETE)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.DELETE]" placement="top">
                 <el-button type="danger" link :icon="Delete" @click="confirmDelete(row)" />
               </el-tooltip>
             </span>
@@ -167,8 +161,8 @@ const {
         <el-table-column prop="jobApi" label="API" width="160" show-overflow-tooltip />
       </el-table>
       <div class="drawer-footer">
-        <el-button type="primary" @click="refreshLogs">刷新</el-button>
-        <el-button @click="logDrawerVisible = false">关闭</el-button>
+        <el-button v-if="hasButton(CMN_BUTTON.REFRESH)" type="primary" @click="refreshLogs">{{ CMN_BUTTON_LABEL[CMN_BUTTON.REFRESH] }}</el-button>
+        <el-button v-if="hasButton(CMN_BUTTON.CANCEL)" @click="logDrawerVisible = false">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
       </div>
     </el-drawer>
   </div>

@@ -4,6 +4,8 @@
  */
 import { nextTick, ref, watch } from 'vue'
 import { Edit, Plus, UserFilled, Delete, Menu as MenuIcon } from '@element-plus/icons-vue'
+import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
+import { useButtonPermission } from '../../composables/useButtonPermission'
 import type { FormInstance, TableInstance } from 'element-plus'
 import type { UserMgmtVO } from '../../models/userMgmt'
 import { useRoleController } from '../../controllers/system/useRoleController'
@@ -58,6 +60,8 @@ const {
   toggleBindMbMenuButton,
   submitBindMenuButtons,
 } = useRoleController()
+
+const { hasButton } = useButtonPermission()
 
 /** 树表内按钮勾选（Element Plus checkbox 变更值兼容） */
 function onMbCheckboxChange(menuButtonId: string | undefined, val: unknown) {
@@ -140,11 +144,11 @@ function userDisplayRealName(row: UserMgmtVO): string {
             />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" @click="onSearch">查询</el-button>
-            <el-button @click="onReset">重置</el-button>
+            <el-button v-if="hasButton(CMN_BUTTON.QUERY)" type="primary" @click="onSearch">{{ CMN_BUTTON_LABEL[CMN_BUTTON.QUERY] }}</el-button>
+            <el-button v-if="hasButton(CMN_BUTTON.RESET)" @click="onReset">{{ CMN_BUTTON_LABEL[CMN_BUTTON.RESET] }}</el-button>
           </el-form-item>
-          <el-form-item class="right-btn">
-            <el-button type="success" :icon="Plus" @click="openCreate">新增</el-button>
+          <el-form-item v-if="hasButton(CMN_BUTTON.ADD)" class="right-btn">
+            <el-button type="success" :icon="Plus" @click="openCreate">{{ CMN_BUTTON_LABEL[CMN_BUTTON.ADD] }}</el-button>
           </el-form-item>
         </el-form>
       </div>
@@ -157,16 +161,16 @@ function userDisplayRealName(row: UserMgmtVO): string {
         <el-table-column label="操作" width="288" fixed="right">
           <template #default="{ row }">
             <span class="role-table-ops">
-              <el-tooltip content="编辑" placement="top">
+              <el-tooltip v-if="hasButton(CMN_BUTTON.EDIT)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.EDIT]" placement="top">
                 <el-button type="primary" link :icon="Edit" @click="openEdit(row)" />
               </el-tooltip>
-              <el-tooltip content="绑定用户" placement="top">
+              <el-tooltip v-if="hasButton(CMN_BUTTON.ASSIGN)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.ASSIGN]" placement="top">
                 <el-button type="primary" link :icon="UserFilled" @click="openBindUsers(row)" />
               </el-tooltip>
-              <el-tooltip content="绑定菜单" placement="top">
+              <el-tooltip v-if="hasButton(CMN_BUTTON.BIND_MENU)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.BIND_MENU]" placement="top">
                 <el-button type="primary" link :icon="MenuIcon" @click="openBindMenuButtons(row)" />
               </el-tooltip>
-              <el-tooltip content="物理删除" placement="top">
+              <el-tooltip v-if="hasButton(CMN_BUTTON.DELETE)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.DELETE]" placement="top">
                 <el-button type="danger" link :icon="Delete" @click="confirmHardDelete(row)" />
               </el-tooltip>
             </span>
@@ -214,8 +218,10 @@ function userDisplayRealName(row: UserMgmtVO): string {
         </el-row>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="onSaveRole">确定</el-button>
+        <el-button v-if="hasButton(CMN_BUTTON.CANCEL)" @click="dialogVisible = false">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
+        <el-button v-if="hasButton(CMN_BUTTON.SAVE)" type="primary" :loading="submitLoading" @click="onSaveRole">
+          {{ CMN_BUTTON_LABEL[CMN_BUTTON.SAVE] }}
+        </el-button>
       </template>
     </el-dialog>
 
@@ -244,8 +250,8 @@ function userDisplayRealName(row: UserMgmtVO): string {
             />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" size="small" @click="onBindSearch">查询</el-button>
-            <el-button size="small" @click="onBindReset">重置</el-button>
+            <el-button v-if="hasButton(CMN_BUTTON.QUERY)" type="primary" size="small" @click="onBindSearch">{{ CMN_BUTTON_LABEL[CMN_BUTTON.QUERY] }}</el-button>
+            <el-button v-if="hasButton(CMN_BUTTON.RESET)" size="small" @click="onBindReset">{{ CMN_BUTTON_LABEL[CMN_BUTTON.RESET] }}</el-button>
           </el-form-item>
         </el-form>
       </div>
@@ -314,8 +320,10 @@ function userDisplayRealName(row: UserMgmtVO): string {
         </div>
       </div>
       <template #footer>
-        <el-button @click="bindDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="bindSubmitLoading" @click="submitBindUsers">保存</el-button>
+        <el-button v-if="hasButton(CMN_BUTTON.CANCEL)" @click="bindDialogVisible = false">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
+        <el-button v-if="hasButton(CMN_BUTTON.SAVE)" type="primary" :loading="bindSubmitLoading" @click="submitBindUsers">
+          {{ CMN_BUTTON_LABEL[CMN_BUTTON.SAVE] }}
+        </el-button>
       </template>
     </el-dialog>
 
@@ -370,8 +378,10 @@ function userDisplayRealName(row: UserMgmtVO): string {
         </el-table-column>
       </el-table>
       <template #footer>
-        <el-button @click="bindMbDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="bindMbSubmitLoading" @click="submitBindMenuButtons">保存</el-button>
+        <el-button v-if="hasButton(CMN_BUTTON.CANCEL)" @click="bindMbDialogVisible = false">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
+        <el-button v-if="hasButton(CMN_BUTTON.SAVE)" type="primary" :loading="bindMbSubmitLoading" @click="submitBindMenuButtons">
+          {{ CMN_BUTTON_LABEL[CMN_BUTTON.SAVE] }}
+        </el-button>
       </template>
     </el-dialog>
   </div>
