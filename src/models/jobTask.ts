@@ -47,7 +47,8 @@ export interface JobTaskFormModel {
   enabled: boolean
   retryMax: number
   retryIntervalMs: number | undefined
-  timeoutMs: number
+  /** 重试次数为 0 时不填；≥1 且为空时默认 5000，最大 15000 */
+  timeoutMs: number | undefined
   headersJson: string
   /** EXTERNAL */
   externalBaseUrl: string

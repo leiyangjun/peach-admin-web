@@ -13,6 +13,13 @@ const JOB_SERVICE_PREFIX = '/peach-job-service'
 // https://vite.dev/config/
 export default defineConfig({
 	plugins: [vue()],
+	resolve: {
+		// no-vue3-cron 自带 element-plus，须与项目共用同一实例
+		dedupe: ['vue', 'element-plus'],
+	},
+	optimizeDeps: {
+		include: ['no-vue3-cron'],
+	},
 	server: {
 		proxy: {
 			// 浏览器：`/api-job{ADMIN}/...` → 网关：`/peach-job-service{ADMIN}/...`（须写在 `/api` 之前）

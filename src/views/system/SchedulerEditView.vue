@@ -2,9 +2,9 @@
 /**
  * 定时任务新建/编辑：与菜单编辑类似的卡片表单布局；平台类型通过网关 API 选择器绑定 GET 接口。
  */
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { MoreFilled, QuestionFilled } from '@element-plus/icons-vue'
+import { Minus, MoreFilled, Plus, QuestionFilled } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import ApiResourceShuttleDialog from '../../components/ApiResourceShuttleDialog.vue'
 import VcrontabCronField from '../../components/VcrontabCronField.vue'
@@ -14,10 +14,14 @@ import { formTypeToJobType, jobTypeToFormType } from '../../models/jobTask'
 import { fetchJobTaskById, pauseJobTask, resumeJobTask, saveJobTask } from '../../api/jobTask'
 import { fetchRegistryServices } from '../../api/permission'
 import { useAppStore } from '../../stores/app'
+import { normalizeQuartzCron } from '../../utils/quartzCron'
 
 const route = useRoute()
 const router = useRouter()
 const appStore = useAppStore()
+
+/** 定时任务列表页路径（与菜单 routePath、动态路由一致） */
+const SCHEDULER_LIST_PATH = '/system/scheduler'
 
 const loading = ref(false)
 const submitLoading = ref(false)
@@ -42,7 +46,7 @@ const form = reactive<JobTaskFormModel>({
   enabled: true,
   retryMax: 0,
   retryIntervalMs: undefined,
-  timeoutMs: 30000,
+  timeoutMs: undefined,
   headersJson: '',
   externalBaseUrl: '',
   urlPathExternal: '',
@@ -52,9 +56,56 @@ const form = reactive<JobTaskFormModel>({
   selectedApi: null,
 })
 
+/** 重试次数：0～10 整数 */
+const RETRY_MAX = 10
+/** 需要重试（次数 ≥1）时：超时空则默认 5000，上限 15000 */
+const RETRY_TIMEOUT_DEFAULT_MS = 5000
+const RETRY_TIMEOUT_MAX_MS = 15000
+
+function clampRetryMaxValue(value: number): number {
+  return Math.min(RETRY_MAX, Math.max(0, Math.round(value)))
+}
+
 const rules: FormRules = {
   name: [{ required: true, message: '请输入任务名称', trigger: 'blur' }],
-  cronExpression: [{ required: true, message: '请配置 Cron', trigger: 'change' }],
+  retryIntervalMs: [
+    {
+      validator: (_rule, value, callback) => {
+        if (form.retryMax >= 1) {
+          if (value == null || Number(value) <= 0) {
+            callback(new Error('请填写重试间隔'))
+            return
+          }
+        }
+        callback()
+      },
+      trigger: 'change',
+    },
+  ],
+}
+
+/** Cron 不走 el-form rules，避免新建/切换模式时自动标红；仅保存时手动校验 */
+const cronFieldError = ref('')
+
+function clearCronFieldError() {
+  cronFieldError.value = ''
+}
+
+function clearFormValidate() {
+  clearCronFieldError()
+  void nextTick(() => {
+    formRef.value?.clearValidate()
+  })
+}
+
+function validateCronOnSubmit(): boolean {
+  const cron = normalizeQuartzCron(form.cronExpression.trim())
+  if (!cron) {
+    cronFieldError.value = '请配置 Cron 表达式'
+    return false
+  }
+  clearCronFieldError()
+  return true
 }
 
 /** 平台类型：调度 API 展示（微服务 + 路径） */
@@ -108,18 +159,6 @@ const externalSchedulingApi = computed({
   },
 })
 
-function normalizeQuartzCron(expr: string): string {
-  const t = expr.trim()
-  if (!t) {
-    return t
-  }
-  const parts = t.split(/\s+/).filter(Boolean)
-  if (parts.length === 5) {
-    return `0 ${t}`
-  }
-  return t
-}
-
 function parseHeadersJson(): Record<string, unknown> | undefined {
   const raw = form.headersJson.trim()
   if (!raw) {
@@ -146,9 +185,9 @@ function buildPayload(): Record<string, unknown> {
     jobCronExpression: normalizeQuartzCron(form.cronExpression),
     valid: form.enabled ? 1 : 0,
     httpMethod: 'GET',
-    retryMax: form.retryMax,
-    retryIntervalMs: form.retryIntervalMs != null && form.retryIntervalMs > 0 ? form.retryIntervalMs : undefined,
-    timeoutMs: form.timeoutMs,
+    retryMax: clampRetryMaxValue(form.retryMax),
+    retryIntervalMs: form.retryMax >= 1 ? form.retryIntervalMs : undefined,
+    timeoutMs: form.retryMax >= 1 ? resolveRetryTimeoutMs() : undefined,
     jobType: formTypeToJobType(form.taskType),
   }
   if (form.id) {
@@ -229,12 +268,11 @@ function applyApiSelection(api: ApiMetaDTO | null) {
   shuttleModel.value = [{ ...api }]
 }
 
-/** 关闭当前页签并回到相邻页签（与 AdminLayout handleTabRemove 一致） */
+/** 关闭编辑页签并回到定时任务列表（保存/取消后统一回列表选项卡） */
 function closeCurrentTab() {
   const currentPath = route.fullPath
   appStore.removeTab(currentPath)
-  const fallback = appStore.tabs[appStore.tabs.length - 1]?.path || '/system/scheduler'
-  void router.push(fallback)
+  void router.push(SCHEDULER_LIST_PATH)
 }
 
 async function loadRegistry() {
@@ -258,11 +296,12 @@ async function loadEdit() {
     form.taskType = jobTypeToFormType(row.jobType)
     form.name = row.jobName
     form.description = row.jobDescription ?? ''
-    form.cronExpression = row.jobCronExpression
+    form.cronExpression = normalizeQuartzCron(row.jobCronExpression ?? '') || row.jobCronExpression || ''
     form.enabled = row.valid === 1
-    form.retryMax = row.retryMax
+    form.retryMax = clampRetryMaxValue(row.retryMax ?? 0)
     form.retryIntervalMs = row.retryIntervalMs ?? undefined
-    form.timeoutMs = row.timeoutMs
+    form.timeoutMs = row.timeoutMs ?? undefined
+    normalizeRetryFieldsForMax(form.retryMax)
     form.headersJson = row.headers?.trim() ? row.headers : ''
     if (form.taskType === 'EXTERNAL') {
       form.externalBaseUrl = row.externalBaseUrl ?? ''
@@ -286,6 +325,7 @@ async function loadEdit() {
     closeCurrentTab()
   } finally {
     loading.value = false
+    clearFormValidate()
   }
 }
 
@@ -319,11 +359,12 @@ function resetForCreate() {
   form.enabled = true
   form.retryMax = 0
   form.retryIntervalMs = undefined
-  form.timeoutMs = 30000
+  form.timeoutMs = undefined
   form.headersJson = ''
   form.externalBaseUrl = ''
   form.urlPathExternal = ''
   applyApiSelection(null)
+  clearFormValidate()
 }
 
 async function onSubmit() {
@@ -331,7 +372,17 @@ async function onSubmit() {
   if (!inst) {
     return
   }
-  await inst.validate().catch(() => Promise.reject())
+  try {
+    await inst.validate()
+  } catch {
+    return
+  }
+  if (!validateCronOnSubmit()) {
+    return
+  }
+  if (!validateRetryOnSubmit()) {
+    return
+  }
   let payload: Record<string, unknown>
   try {
     payload = buildPayload()
@@ -373,6 +424,76 @@ async function onToggleEnabled() {
   }
 }
 
+function ensureRetryTimeoutDefault() {
+  if (form.retryMax >= 1 && (form.timeoutMs == null || form.timeoutMs <= 0)) {
+    form.timeoutMs = RETRY_TIMEOUT_DEFAULT_MS
+  }
+}
+
+function clampRetryTimeout() {
+  if (form.retryMax >= 1 && form.timeoutMs != null && form.timeoutMs > RETRY_TIMEOUT_MAX_MS) {
+    form.timeoutMs = RETRY_TIMEOUT_MAX_MS
+  }
+}
+
+/** 提交用：空则默认 5000，且不超过上限 */
+function resolveRetryTimeoutMs(): number {
+  let ms = form.timeoutMs
+  if (ms == null || ms <= 0) {
+    ms = RETRY_TIMEOUT_DEFAULT_MS
+  }
+  return Math.min(ms, RETRY_TIMEOUT_MAX_MS)
+}
+
+/** 重试次数为 0 时清空间隔与超时；≥1 时校正超时默认值与上限 */
+function normalizeRetryFieldsForMax(retryMax: number) {
+  if (retryMax === 0) {
+    form.retryIntervalMs = undefined
+    form.timeoutMs = undefined
+    return
+  }
+  ensureRetryTimeoutDefault()
+  clampRetryTimeout()
+}
+
+/** 用户调整重试次数时的联动（新增/编辑一致） */
+function formatRetryMaxTooltip(val: number) {
+  return `${val} 次`
+}
+
+function stepRetryMax(delta: number) {
+  onRetryMaxChange(clampRetryMaxValue(form.retryMax + delta))
+}
+
+function onRetryMaxChange(val: number | undefined) {
+  const next = clampRetryMaxValue(val ?? form.retryMax)
+  form.retryMax = next
+  if (next === 0) {
+    form.retryIntervalMs = undefined
+    form.timeoutMs = undefined
+    void nextTick(() => {
+      formRef.value?.clearValidate(['retryIntervalMs'])
+    })
+    return
+  }
+  ensureRetryTimeoutDefault()
+  clampRetryTimeout()
+}
+
+function validateRetryOnSubmit(): boolean {
+  if (form.retryMax >= 1) {
+    if (form.retryIntervalMs == null || form.retryIntervalMs <= 0) {
+      void nextTick(() => {
+        formRef.value?.validateField('retryIntervalMs')
+      })
+      return false
+    }
+    ensureRetryTimeoutDefault()
+    clampRetryTimeout()
+  }
+  return true
+}
+
 watch(
   () => form.taskType,
   (t, prev) => {
@@ -386,12 +507,22 @@ watch(
   },
 )
 
+watch(
+  () => form.cronExpression,
+  () => {
+    if (cronFieldError.value) {
+      clearCronFieldError()
+    }
+  },
+)
+
 onMounted(async () => {
   await loadRegistry()
   if (isEdit.value) {
     await loadEdit()
   } else {
     resetForCreate()
+    clearFormValidate()
   }
 })
 </script>
@@ -420,7 +551,34 @@ onMounted(async () => {
                 </el-select>
               </el-form-item>
 
-              <el-form-item label="cron表达式" prop="cronExpression" class="form-grid__full form-item--cron">
+              <el-form-item
+                required
+                class="form-grid__full form-item--cron form-item--label-tip"
+                :error="cronFieldError"
+                :show-message="Boolean(cronFieldError)"
+              >
+                <template #label>
+                  <span class="label-with-tip">
+                    <span class="label-with-tip__text">Cron 表达式</span>
+                    <el-popover
+                      placement="top"
+                      :width="320"
+                      :trigger="['hover', 'click']"
+                      popper-class="cron-expr-popover"
+                      :teleported="true"
+                    >
+                      <div class="cron-expr-tip">
+                        <p><strong>常用：</strong>从下拉列表选择预设调度频率（如每分钟、每天 9 点），支持按名称、关键词或表达式片段搜索，选中即可生效。</p>
+                        <p><strong>自定义：</strong>点击「配置 Cron」在弹窗中按秒、分、时、日等维度组合规则，适用于预设未覆盖的复杂场景。</p>
+                      </div>
+                      <template #reference>
+                        <span class="tip-trigger" tabindex="0" role="button" aria-label="Cron 表达式说明">
+                          <el-icon><QuestionFilled /></el-icon>
+                        </span>
+                      </template>
+                    </el-popover>
+                  </span>
+                </template>
                 <VcrontabCronField v-model="form.cronExpression" />
               </el-form-item>
 
@@ -462,34 +620,81 @@ onMounted(async () => {
                 </el-form-item>
               </template>
 
-              <el-form-item label="重试次数" class="form-grid__half">
-                <el-input-number v-model="form.retryMax" :min="0" :max="20" controls-position="right" class="w-full" />
+              <el-form-item label="重试次数" class="form-grid__half form-item--retry-max">
+                <div class="retry-max-field">
+                  <el-button
+                    class="retry-max-field__btn"
+                    :disabled="form.retryMax <= 0"
+                    aria-label="减少重试次数"
+                    @click="stepRetryMax(-1)"
+                  >
+                    <el-icon><Minus /></el-icon>
+                  </el-button>
+                  <el-slider
+                    v-model="form.retryMax"
+                    class="retry-max-field__slider"
+                    :min="0"
+                    :max="RETRY_MAX"
+                    :step="1"
+                    :show-tooltip="true"
+                    :format-tooltip="formatRetryMaxTooltip"
+                    @input="onRetryMaxChange"
+                    @change="onRetryMaxChange"
+                  />
+                  <el-button
+                    class="retry-max-field__btn"
+                    :disabled="form.retryMax >= RETRY_MAX"
+                    aria-label="增加重试次数"
+                    @click="stepRetryMax(1)"
+                  >
+                    <el-icon><Plus /></el-icon>
+                  </el-button>
+                  <span class="retry-max-field__value" aria-live="polite">{{ form.retryMax }}</span>
+                </div>
               </el-form-item>
-              <el-form-item label="重试间隔" class="form-grid__half">
+              <el-form-item
+                label="重试间隔"
+                prop="retryIntervalMs"
+                class="form-grid__half"
+                :required="form.retryMax >= 1"
+              >
                 <el-input-number
                   v-model="form.retryIntervalMs"
-                  :min="0"
+                  :min="form.retryMax >= 1 ? 1 : 0"
                   :max="600000"
                   :step="500"
+                  :disabled="form.retryMax === 0"
                   controls-position="right"
                   class="w-full"
                   placeholder="毫秒"
                 />
               </el-form-item>
 
-              <el-form-item class="form-grid__full">
+              <el-form-item class="form-grid__full form-item--label-tip">
                 <template #label>
                   <span class="label-with-tip">
-                    请求超时
+                    <span class="label-with-tip__text">请求超时</span>
                     <el-tooltip
-                      content="HTTP 请求超时后按重试策略重试；用尽重试次数后记录为失败"
+                      content="启用重试时：单次请求超时，空则默认 5000ms，最大 15000ms；用尽重试后记录失败"
                       placement="top"
                     >
-                      <el-icon class="tip-icon"><QuestionFilled /></el-icon>
+                      <span class="tip-trigger" tabindex="0" role="button" aria-label="请求超时说明">
+                        <el-icon><QuestionFilled /></el-icon>
+                      </span>
                     </el-tooltip>
                   </span>
                 </template>
-                <el-input-number v-model="form.timeoutMs" :min="1000" :max="600000" :step="1000" controls-position="right" class="w-full" />
+                <el-input-number
+                  v-model="form.timeoutMs"
+                  :min="1000"
+                  :max="RETRY_TIMEOUT_MAX_MS"
+                  :step="500"
+                  :disabled="form.retryMax === 0"
+                  controls-position="right"
+                  class="w-full"
+                  placeholder="默认 5000，最大 15000"
+                  @change="clampRetryTimeout"
+                />
               </el-form-item>
 
               <el-form-item v-if="form.taskType === 'EXTERNAL'" label="请求头" class="form-grid__full">
@@ -649,8 +854,59 @@ onMounted(async () => {
 .scheduler-edit-form--compact .form-item--cron {
   margin-bottom: 10px;
 }
+/* 带问号的 label：文字右对齐，问号固定在最右侧同一列 */
+.scheduler-edit-form--compact :deep(.form-item--label-tip .el-form-item__label) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  line-height: 32px;
+  overflow: visible;
+  pointer-events: auto;
+}
+.scheduler-edit-form--compact .form-item--cron :deep(.el-form-item__content) {
+  align-items: stretch;
+}
+.scheduler-edit-form--compact .form-item--cron :deep(.vcrontab-field) {
+  width: 100%;
+}
+.scheduler-edit-form--compact .form-item--cron :deep(.vcrontab-field__control) {
+  width: 100%;
+}
 .scheduler-edit-form--compact .form-item--api {
   margin-bottom: 10px;
+}
+.scheduler-edit-form--compact .form-item--retry-max :deep(.el-form-item__content) {
+  align-items: center;
+}
+.retry-max-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.retry-max-field__btn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+.retry-max-field__slider {
+  flex: 1;
+  min-width: 0;
+}
+.retry-max-field__slider :deep(.el-slider__runway) {
+  margin: 0 6px;
+}
+.retry-max-field__value {
+  flex-shrink: 0;
+  min-width: 22px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--el-text-color-regular);
+  line-height: 1;
 }
 .w-full {
   width: 100%;
@@ -658,11 +914,54 @@ onMounted(async () => {
 .label-with-tip {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 4px;
+  width: 100%;
+  white-space: nowrap;
 }
-.tip-icon {
-  font-size: 14px;
+.label-with-tip__text {
+  flex: 0 1 auto;
+  text-align: right;
+}
+/* Cron 文案较长，略缩小字号以便与「请求超时」问号纵向对齐 */
+.form-item--cron .label-with-tip__text {
+  font-size: 12px;
+  letter-spacing: -0.2px;
+}
+.tip-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
   color: var(--el-text-color-secondary);
-  cursor: help;
+  outline: none;
+  pointer-events: auto;
+}
+.tip-trigger .el-icon {
+  font-size: 14px;
+}
+.tip-trigger:hover,
+.tip-trigger:focus-visible {
+  color: var(--el-color-primary);
+}
+</style>
+
+<style>
+.cron-expr-popover.el-popover {
+  max-width: 320px;
+}
+.cron-expr-tip p {
+  margin: 0 0 8px;
+  line-height: 1.55;
+  font-size: 13px;
+}
+.cron-expr-tip p:last-child {
+  margin-bottom: 0;
+}
+.cron-expr-tip strong {
+  font-weight: 600;
 }
 </style>
