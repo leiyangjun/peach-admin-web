@@ -16,7 +16,7 @@ const registeredRouteNames: string[] = []
 let staticSidebarBundleRegistered = false
 
 /**
- * 将写死菜单树注册为 AdminShell 子路由，全会话仅执行一次（避免重复 addRoute）。
+ * 将写死菜单树注册为 AdminShell 子路由，全会话仅执行一次。
  * @returns 本次是否新完成注册；为 true 时调用方应在导航守卫里 `next({ ...to, replace: true })`，
  * 否则首屏直达深链（如新窗口 `/system/menu`）在 addRoute 之后不会重新匹配，会出现白屏。
  */
@@ -35,10 +35,10 @@ export function clearRegisteredMenuRoutes(router: Router): void {
   staticSidebarBundleRegistered = false
 }
 
-/** 已在 AdminShell 静态注册的子 path 前缀，避免 addRoute 冲突 */
+/** 与 AdminShell 静态子路由冲突的 path 前缀，动态注册时跳过 */
 function isReservedStaticPath(fullPath: string): boolean {
   const p = fullPath.replace(/^\/+/, '')
-  return p === 'dashboard' || p.startsWith('frame/')
+  return p === 'dashboard' || p.startsWith('frame/') || p.startsWith('system/scheduler/edit')
 }
 
 function collectMenuRoutes(nodes: MenuMgmtVO[] | null | undefined, out: MenuMgmtVO[]): void {

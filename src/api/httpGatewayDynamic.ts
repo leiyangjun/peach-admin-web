@@ -3,7 +3,7 @@ import JSONbigint from 'json-bigint'
 import { normalizeAxiosParamsEncoding } from '../utils/queryParamEncoding'
 import { rejectAxiosResponse } from './axiosResponseHandler'
 
-/** 超越 Number.MAX_SAFE_INTEGER 的整型在 JSON 中按字符串保留，避免雪花 ID 被截断。 */
+/** 超出 JS 安全整数范围的 JSON 整型按字符串解析，保留雪花 ID 精度。 */
 const jsonParser = JSONbigint({ storeAsString: true })
 
 /**

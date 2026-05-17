@@ -4,16 +4,15 @@ import { ADMIN_API_PATH_PREFIX } from '../config/adminApiPrefix'
 import { normalizeAxiosParamsEncoding } from '../utils/queryParamEncoding'
 import { rejectAxiosResponse } from './axiosResponseHandler'
 
-/** 超出 JS 安全整数范围的 JSON 整型按字符串解析，保留雪花 ID 精度。 */
 const jsonParser = JSONbigint({ storeAsString: true })
 
 /**
- * peach-common-service 的 Axios 实例：baseURL 为 `/api-common` + 管理 API 前缀。
- * 认证服务使用 {@link ./http}；开发代理顺序见 vite.config（`/api-common` 须在 `/api` 之前）。
+ * peach-job-service 的 Axios 实例：baseURL 为 `/api-job` + 管理 API 前缀。
+ * 开发代理见 vite.config（`/api-job` 规则须在 `/api` 之前）。
  */
-const httpCommon = axios.create({
-  baseURL: `/api-common${ADMIN_API_PATH_PREFIX}`,
-  timeout: 15000,
+const httpJob = axios.create({
+  baseURL: `/api-job${ADMIN_API_PATH_PREFIX}`,
+  timeout: 20000,
   transformResponse: [
     (data) => {
       if (data == null || data === '') {
@@ -31,7 +30,7 @@ const httpCommon = axios.create({
   ],
 })
 
-httpCommon.interceptors.request.use((config) => {
+httpJob.interceptors.request.use((config) => {
   normalizeAxiosParamsEncoding(config.params)
   const token = localStorage.getItem('peach_admin_token')
   if (token) {
@@ -40,9 +39,9 @@ httpCommon.interceptors.request.use((config) => {
   return config
 })
 
-httpCommon.interceptors.response.use(
+httpJob.interceptors.response.use(
   (response) => response,
   (error) => rejectAxiosResponse(error),
 )
 
-export default httpCommon
+export default httpJob
