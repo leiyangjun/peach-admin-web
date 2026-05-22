@@ -30,12 +30,14 @@ export interface RsaPublicKeyDTO {
   publicKeyPem: string
 }
 
-/** 登录成功令牌：与后端 TokenDTO 对齐（当前无 refreshToken） */
+/** 登录成功令牌：与后端 TokenDTO 对齐 */
 export interface TokenDTO {
   tokenId: string
   tokenType: string
   accessToken: string
   expiresIn: number
+  refreshToken?: string
+  refreshExpiresIn?: number
 }
 
 export interface UserInfo {

@@ -9,10 +9,9 @@ import { usePermissionStore } from './permission'
  * 作者：leiyangjun
  */
 
-const TOKEN_KEY = 'peach_admin_token'
+import { clearStoredTokens, persistTokens, REFRESH_KEY, TOKEN_KEY } from '../utils/tokenStorage'
+
 const USER_KEY = 'peach_admin_user'
-/** 历史兼容：当前 TokenDTO 无 refreshToken，保留键清理逻辑 */
-const REFRESH_KEY = 'peach_admin_refresh'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -25,9 +24,8 @@ export const useAuthStore = defineStore('auth', {
   },
   actions: {
     /**
-     * 密码 + 滑块登录：经网关访问认证服务（RSA 密文在 api 层完成），仅持久化 access token。
+     * 密码 + 滑块登录：经网关访问认证服务（RSA 密文在 api 层完成），持久化 access + refresh。
      */
-    /** remember：后端暂无 refreshToken，记住我仅保留表单语义，与令牌持久化策略无关 */
     async login(payload: LoginPayload & { remember: boolean }) {
       const { remember: _remember, ...loginPayload } = payload
       if (!loginPayload.username || !loginPayload.password) {
@@ -37,11 +35,7 @@ export const useAuthStore = defineStore('auth', {
         throw new Error('请先完成滑块验证')
       }
       const tokens = await loginWithPassword(loginPayload)
-      this.token = tokens.accessToken
-      localStorage.setItem(TOKEN_KEY, this.token)
-
-      this.refreshToken = ''
-      localStorage.removeItem(REFRESH_KEY)
+      this.applyTokens(tokens)
 
       const claims = decodeJwtPayload<{ preferred_username?: string }>(tokens.accessToken)
       const displayName = claims?.preferred_username ?? payload.username
@@ -52,13 +46,18 @@ export const useAuthStore = defineStore('auth', {
       localStorage.setItem(USER_KEY, JSON.stringify(this.user))
       await usePermissionStore().loadCurrentUserPermission()
     },
+    /** 登录或 refresh 成功后写入本地与内存 */
+    applyTokens(tokens: { accessToken: string; refreshToken?: string }) {
+      persistTokens(tokens)
+      this.token = tokens.accessToken
+      this.refreshToken = tokens.refreshToken ?? ''
+    },
     logout() {
       this.token = ''
       this.refreshToken = ''
       this.user = null
-      localStorage.removeItem(TOKEN_KEY)
+      clearStoredTokens()
       localStorage.removeItem(USER_KEY)
-      localStorage.removeItem(REFRESH_KEY)
     },
     updateNickname(nickname: string) {
       if (!this.user) {

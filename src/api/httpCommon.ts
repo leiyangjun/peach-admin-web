@@ -1,8 +1,7 @@
 import axios from 'axios'
 import JSONbigint from 'json-bigint'
 import { ADMIN_API_PATH_PREFIX } from '../config/adminApiPrefix'
-import { normalizeAxiosParamsEncoding } from '../utils/queryParamEncoding'
-import { rejectAxiosResponse } from './axiosResponseHandler'
+import { setupAuthInterceptors } from './setupAuthInterceptors'
 
 /** 超出 JS 安全整数范围的 JSON 整型按字符串解析，保留雪花 ID 精度。 */
 const jsonParser = JSONbigint({ storeAsString: true })
@@ -31,18 +30,6 @@ const httpCommon = axios.create({
   ],
 })
 
-httpCommon.interceptors.request.use((config) => {
-  normalizeAxiosParamsEncoding(config.params)
-  const token = localStorage.getItem('peach_admin_token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
-})
-
-httpCommon.interceptors.response.use(
-  (response) => response,
-  (error) => rejectAxiosResponse(error),
-)
+setupAuthInterceptors(httpCommon)
 
 export default httpCommon
