@@ -72,6 +72,36 @@ export function formTypeToJobType(taskType: JobTaskFormModel['taskType']): numbe
   return taskType === 'EXTERNAL' ? 1 : 0
 }
 
+/** 保存/更新定时任务公共字段（与 job-service 入参对齐） */
+export interface JobTaskSaveBaseDTO {
+  id?: string
+  jobName: string
+  jobGroup: string
+  jobDescription?: string
+  jobCronExpression: string
+  valid: number
+  httpMethod: string
+  retryMax: number
+  retryIntervalMs?: number
+  timeoutMs?: number
+  jobType: number
+}
+
+/** 平台内任务保存体 */
+export interface JobTaskSaveInternalDTO extends JobTaskSaveBaseDTO {
+  urlPath: string
+  serviceName: string
+}
+
+/** 外部 HTTP 任务保存体 */
+export interface JobTaskSaveExternalDTO extends JobTaskSaveBaseDTO {
+  externalBaseUrl: string
+  urlPath: string
+  headers?: string
+}
+
+export type JobTaskSaveDTO = JobTaskSaveInternalDTO | JobTaskSaveExternalDTO
+
 /** 定时任务分页查询（与 BaseController GET /page 对齐） */
 export interface JobPageQuery {
   pageNum: number

@@ -25,3 +25,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# 本地 Agent 工程说明，不入库
+AGENTS.md

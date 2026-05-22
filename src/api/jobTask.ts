@@ -4,7 +4,7 @@
 import httpJob from './httpJob'
 import { isPeachSuccess } from '../utils/apiResult'
 import type { ApiEnvelope } from '../models/auth'
-import type { JobLogVO, JobPageQuery, JobTaskVO } from '../models/jobTask'
+import type { JobLogVO, JobPageQuery, JobTaskSaveDTO, JobTaskVO } from '../models/jobTask'
 
 const TASK_BASE = '/job/task'
 const LOG_BASE = '/job/log'
@@ -44,7 +44,7 @@ export async function fetchJobTaskById(id: string): Promise<JobTaskVO> {
 }
 
 /** 新增或更新 */
-export async function saveJobTask(payload: Record<string, unknown>): Promise<void> {
+export async function saveJobTask(payload: JobTaskSaveDTO): Promise<void> {
   const id = payload.id
   if (id != null && String(id).length > 0) {
     const { data: body } = await httpJob.put<ApiEnvelope<unknown>>(TASK_BASE, payload)

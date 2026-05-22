@@ -11,6 +11,7 @@ import DictButtonShuttleDialog from '../../components/DictButtonShuttleDialog.vu
 import ApiResourceShuttleDialog from '../../components/ApiResourceShuttleDialog.vue'
 import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
 import { useButtonPermission } from '../../composables/useButtonPermission'
+import { useMenuPanelResize } from '../../composables/useMenuPanelResize'
 import { MENU_ICON_OPTIONS, type MenuIconOption } from '../../constants/menuIconOptions'
 import type { MenuMgmtButtonBindingItem, MenuMgmtVO } from '../../models/menuMgmt'
 import type { MenuButtonPickerRow } from '../../models/permission'
@@ -121,41 +122,7 @@ const iconSelectOptions = computed((): MenuIconOption[] => {
   return MENU_ICON_OPTIONS
 })
 
-/** 左侧菜单树默认宽度（px），较原栅格约 33% 更窄 */
-const TREE_PANEL_DEFAULT_PX = 240
-/** 拖拽调整时的最小/最大宽度（px） */
-const TREE_PANEL_MIN_PX = 200
-const TREE_PANEL_MAX_PX = 560
-
-const treePanelWidthPx = ref(TREE_PANEL_DEFAULT_PX)
-
-function clampTreeWidth(w: number): number {
-  return Math.min(TREE_PANEL_MAX_PX, Math.max(TREE_PANEL_MIN_PX, w))
-}
-
-/** 左右分栏拖拽：mousedown 起在 window 上跟踪移动与释放 */
-function onTreeResizePointerDown(e: MouseEvent) {
-  if (e.button !== 0) {
-    return
-  }
-  e.preventDefault()
-  const startX = e.clientX
-  const startW = treePanelWidthPx.value
-  const prevUserSelect = document.body.style.userSelect
-  document.body.style.userSelect = 'none'
-
-  const onMove = (ev: MouseEvent) => {
-    const dx = ev.clientX - startX
-    treePanelWidthPx.value = clampTreeWidth(startW + dx)
-  }
-  const onUp = () => {
-    document.body.style.userSelect = prevUserSelect
-    window.removeEventListener('mousemove', onMove)
-    window.removeEventListener('mouseup', onUp)
-  }
-  window.addEventListener('mousemove', onMove)
-  window.addEventListener('mouseup', onUp)
-}
+const { treePanelWidthPx, onTreeResizePointerDown } = useMenuPanelResize()
 
 /** 目录类型不需要路由/组件，输入禁用并由 watch 清空 */
 const isCatalogMenu = computed(() => formModel.value.menuType === 'CATALOG')

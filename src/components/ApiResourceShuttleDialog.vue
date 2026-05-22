@@ -2,34 +2,21 @@
 /**
  * 绑定 API 资源：服务下拉 + 方法/关键字拉取全量 Admin API，左右穿梭，前端分页。
  */
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { computed } from 'vue'
 import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../constants/cmnButton'
-import { fetchGatewayAdminApis } from '../api/permission'
 import type { ApiMetaDTO, RegistryServiceItem } from '../models/permission'
-import { isSessionExpiredError } from '../utils/sessionExpired'
-
-function apiRowKeyFn(row: ApiMetaDTO) {
-  return `${(row.method ?? '').toUpperCase()}::${row.urlPath ?? ''}`
-}
+import { useApiResourceShuttle } from '../composables/useApiResourceShuttle'
 
 const props = withDefaults(
   defineProps<{
     visible: boolean
     registryServices: RegistryServiceItem[]
-    /** 打开时右侧已选（回显） */
     modelValue?: ApiMetaDTO[]
-    /** 弹窗标题中的按钮展示名，与 titleSuffix 二选一优先用本字段 */
     buttonLabel?: string
-    /** 标题后缀别名，效果同 buttonLabel */
     titleSuffix?: string
-    /** 自定义拉取 API 列表（如经 job-service 直连微服务）；不传则走网关 */
     listApis?: (serviceId: string, method?: string, keyword?: string) => Promise<ApiMetaDTO[]>
-    /** 右侧最多条数；定时任务等场景传 1 实现单选 */
     maxRight?: number
-    /** 固定 HTTP 方法（如 GET），隐藏方法下拉并不再传其它 method */
     forceHttpMethod?: string
-    /** 打开时优先选中的注册 serviceId（高于列表首项） */
     initialServiceId?: string
   }>(),
   {
@@ -53,177 +40,25 @@ const innerVisible = computed({
   set: (v) => emit('update:visible', v),
 })
 
-/** 标题：有按钮名时为「绑定（名称）API」，否则「绑定API资源」 */
 const dialogTitle = computed(() => {
   const tag = (props.buttonLabel || props.titleSuffix || '').trim()
   return tag ? `绑定（${tag}）API` : '绑定API资源'
 })
 
-const serviceId = ref('')
-const method = ref('')
-const keyword = ref('')
-const listLoading = ref(false)
-/** 当前服务拉取结果（请求携带 method/keyword，与 Swagger 一致），左侧分页基于此 */
-const rawList = ref<ApiMetaDTO[]>([])
-
-const rightList = ref<ApiMetaDTO[]>([])
-
-const leftPage = ref(1)
-const leftPageSize = ref(10)
-
-const httpMethodOptions = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'] as const
-
-const forceMethodLock = computed(() => (props.forceHttpMethod ?? '').trim())
-
-const methodSelectOptions = computed(() => {
-  const f = (props.forceHttpMethod ?? '').trim().toUpperCase()
-  if (f) {
-    return [f] as readonly string[]
-  }
-  return httpMethodOptions
-})
-
-const rightKeySet = computed(() => new Set(rightList.value.map(apiRowKeyFn)))
-
-const leftTotal = computed(() => rawList.value.length)
-
-const leftPaged = computed(() => {
-  const start = (leftPage.value - 1) * leftPageSize.value
-  return rawList.value.slice(start, start + leftPageSize.value)
-})
-
-/** 左侧行高亮：已在右侧的 API */
-function leftApiRowClassName({ row }: { row: ApiMetaDTO }) {
-  return rightKeySet.value.has(apiRowKeyFn(row)) ? 'shuttle-row--picked' : ''
-}
-
-async function loadApis() {
-  const sid = (serviceId.value ?? '').trim()
-  if (!sid) {
-    rawList.value = []
-    return
-  }
-  listLoading.value = true
-  try {
-    const forced = (props.forceHttpMethod ?? '').trim()
-    const m = forced || (method.value ?? '').trim()
-    const kw = (keyword.value ?? '').trim()
-    let list: ApiMetaDTO[]
-    if (props.listApis) {
-      list = await props.listApis(sid, m || undefined, kw || undefined)
-    } else {
-      list = await fetchGatewayAdminApis(sid, m || undefined, kw || undefined)
-    }
-    const only = (props.forceHttpMethod ?? '').trim().toUpperCase()
-    rawList.value =
-      only === 'GET' ? list.filter((a) => (a.method ?? 'GET').toUpperCase() === 'GET') : list
-    leftPage.value = 1
-  } catch (e) {
-    if (!isSessionExpiredError(e)) {
-      ElMessage.error(e instanceof Error ? e.message : '拉取 Admin API 失败')
-    }
-    rawList.value = []
-  } finally {
-    listLoading.value = false
-  }
-}
-
-watch(
-  () => props.visible,
-  (v) => {
-    if (v) {
-      const svcs = props.registryServices
-      const fromModel = (props.modelValue ?? []).find((x) => (x.serviceName ?? '').trim())?.serviceName?.trim()
-      const initSid =
-        (props.initialServiceId ?? '').trim() || fromModel || (svcs.length ? svcs[0]!.serviceId : '')
-      serviceId.value = initSid
-      method.value = (props.forceHttpMethod ?? '').trim() || ''
-      keyword.value = ''
-      rightList.value = (props.modelValue ?? []).map((x) => ({ ...x }))
-      rawList.value = []
-      leftPage.value = 1
-    }
+const shuttle = useApiResourceShuttle({
+  visible: () => props.visible,
+  registryServices: () => props.registryServices,
+  modelValue: () => props.modelValue ?? [],
+  initialServiceId: () => props.initialServiceId ?? '',
+  forceHttpMethod: () => props.forceHttpMethod ?? '',
+  maxRight: () => props.maxRight,
+  listApis: props.listApis,
+  onUpdateModelValue: (apis) => emit('update:modelValue', apis),
+  onConfirm: (apis) => emit('confirm', apis),
+  onClose: () => {
+    innerVisible.value = false
   },
-)
-
-watch(serviceId, () => {
-  if (props.visible) {
-    void loadApis()
-  }
 })
-
-let keywordSearchTimer: ReturnType<typeof setTimeout> | null = null
-
-watch(keyword, () => {
-  if (!props.visible) {
-    return
-  }
-  leftPage.value = 1
-  if (keywordSearchTimer != null) {
-    clearTimeout(keywordSearchTimer)
-  }
-  keywordSearchTimer = setTimeout(() => {
-    keywordSearchTimer = null
-    void loadApis()
-  }, 400)
-})
-
-function onSearch() {
-  if (keywordSearchTimer != null) {
-    clearTimeout(keywordSearchTimer)
-    keywordSearchTimer = null
-  }
-  void loadApis()
-}
-
-function addLeft(row: ApiMetaDTO) {
-  const k = apiRowKeyFn(row)
-  if (props.maxRight === 1) {
-    if (rightList.value.length === 1 && rightList.value.some((r) => apiRowKeyFn(r) === k)) {
-      return
-    }
-    rightList.value = [{ ...row }]
-    return
-  }
-  if (rightList.value.some((r) => apiRowKeyFn(r) === k)) {
-    return
-  }
-  rightList.value = [...rightList.value, { ...row }]
-}
-
-function removeRight(row: ApiMetaDTO) {
-  const k = apiRowKeyFn(row)
-  rightList.value = rightList.value.filter((r) => apiRowKeyFn(r) !== k)
-}
-
-watch(method, () => {
-  if (props.visible) {
-    leftPage.value = 1
-    void loadApis()
-  }
-})
-
-onBeforeUnmount(() => {
-  if (keywordSearchTimer != null) {
-    clearTimeout(keywordSearchTimer)
-    keywordSearchTimer = null
-  }
-})
-
-function onConfirm() {
-  const sid = (serviceId.value ?? '').trim()
-  const stamped = rightList.value.map((r) => ({
-    ...r,
-    serviceName: (r.serviceName ?? '').trim() || sid || undefined,
-  }))
-  emit('update:modelValue', [...stamped])
-  emit('confirm', [...stamped])
-  innerVisible.value = false
-}
-
-function onCancel() {
-  innerVisible.value = false
-}
 </script>
 
 <template>
@@ -240,7 +75,7 @@ function onCancel() {
     </div>
     <template v-else>
       <div class="api-shuttle-toolbar">
-        <el-select v-model="serviceId" filterable placeholder="微服务" class="api-svc">
+        <el-select v-model="shuttle.serviceId" filterable placeholder="微服务" class="api-svc">
           <el-option
             v-for="s in registryServices"
             :key="s.serviceId"
@@ -249,39 +84,39 @@ function onCancel() {
           />
         </el-select>
         <el-select
-          v-if="!forceMethodLock"
-          v-model="method"
+          v-if="!shuttle.forceMethodLock"
+          v-model="shuttle.method"
           clearable
           placeholder="HTTP 方法"
           class="api-method"
         >
           <el-option label="全部" value="" />
-          <el-option v-for="m in methodSelectOptions" :key="m" :label="m" :value="m" />
+          <el-option v-for="m in shuttle.methodSelectOptions" :key="m" :label="m" :value="m" />
         </el-select>
         <el-input
-          v-model="keyword"
+          v-model="shuttle.keyword"
           clearable
           placeholder="路径/摘要关键字"
           class="api-kw"
-          @keyup.enter="onSearch"
+          @keyup.enter="shuttle.onSearch"
         />
-        <el-button type="primary" :loading="listLoading" @click="onSearch">{{ CMN_BUTTON_LABEL[CMN_BUTTON.QUERY] }}</el-button>
+        <el-button type="primary" :loading="shuttle.listLoading" @click="shuttle.onSearch">{{ CMN_BUTTON_LABEL[CMN_BUTTON.QUERY] }}</el-button>
       </div>
       <div class="shuttle-body">
         <div class="shuttle-col">
           <div class="shuttle-col-title">可选 API</div>
           <div class="shuttle-table-wrap">
             <el-table
-              v-loading="listLoading"
-              :data="leftPaged"
-              :row-class-name="leftApiRowClassName"
+              v-loading="shuttle.listLoading"
+              :data="shuttle.leftPaged"
+              :row-class-name="shuttle.leftApiRowClassName"
               size="small"
               border
               stripe
               height="220"
               class="shuttle-table"
-              :row-key="apiRowKeyFn"
-              @row-click="(row: ApiMetaDTO) => addLeft(row)"
+              :row-key="shuttle.apiRowKeyFn"
+              @row-click="(row: ApiMetaDTO) => shuttle.addLeft(row)"
             >
               <template #empty>
                 <el-empty description="暂无数据，请切换服务或点「搜索」拉取列表" :image-size="48" />
@@ -292,10 +127,10 @@ function onCancel() {
             </el-table>
           </div>
           <el-pagination
-            v-model:current-page="leftPage"
+            v-model:current-page="shuttle.leftPage"
             layout="prev, pager, next, total"
-            :total="leftTotal"
-            :page-size="leftPageSize"
+            :total="shuttle.leftTotal"
+            :page-size="shuttle.leftPageSize"
             small
             class="shuttle-pager"
             background
@@ -305,14 +140,14 @@ function onCancel() {
           <div class="shuttle-col-title">已选 API</div>
           <div class="shuttle-table-wrap">
             <el-table
-              :data="rightList"
+              :data="shuttle.rightList"
               size="small"
               border
               stripe
               height="220"
               class="shuttle-table"
-              :row-key="apiRowKeyFn"
-              @row-click="(row: ApiMetaDTO) => removeRight(row)"
+              :row-key="shuttle.apiRowKeyFn"
+              @row-click="(row: ApiMetaDTO) => shuttle.removeRight(row)"
             >
               <template #empty>
                 <el-empty description="从左侧添加" :image-size="48" />
@@ -326,8 +161,8 @@ function onCancel() {
       </div>
     </template>
     <template #footer>
-      <el-button @click="onCancel">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
-      <el-button type="primary" :disabled="!registryServices.length" @click="onConfirm">
+      <el-button @click="shuttle.onCancel">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
+      <el-button type="primary" :disabled="!registryServices.length" @click="shuttle.onConfirm">
         {{ CMN_BUTTON_LABEL[CMN_BUTTON.SAVE] }}
       </el-button>
     </template>

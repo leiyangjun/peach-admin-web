@@ -95,7 +95,7 @@ export function registerRoutesFromMenuTree(router: Router, tree: MenuMgmtVO[], p
     }
     const resolved = resolveViewLoaderFromInternalPath(parsed.path)
     const loader = resolved ?? FALLBACK_LOADER
-    if (!resolved) {
+    if (!resolved && import.meta.env.DEV) {
       console.warn(`[动态路由] 未找到视图: menuCode=${m.menuCode}, routePath=${m.routePath}`)
     }
     const routeName = `menu_${m.menuCode}`.replace(/[^\w]/g, '_')

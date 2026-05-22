@@ -1,13 +1,10 @@
-<script lang="ts">
-export default {
-  name: 'ReportOverviewView',
-}
-</script>
-
 <script setup lang="ts">
 /**
  * 报表模块占位页：与种子菜单 route_path=/report/overview 及 viewRouteResolver 约定路径 report/overviewview 对齐。
  */
+defineOptions({
+  name: 'ReportOverviewView',
+})
 </script>
 
 <template>
