@@ -27,7 +27,7 @@ export interface DictPageQuery {
   pageSize: number
   searchValue?: string
   /** null/undefined=全部；0=仅停用；1=仅启用 */
-  listStatusFlag?: number | string
+  status?: number | string
   sortName?: string
   sortType?: string
 }

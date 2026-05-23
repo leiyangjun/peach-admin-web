@@ -36,7 +36,7 @@ const {
   openEdit,
   onSubmit,
   onToggleStatus,
-  confirmHardDelete,
+  confirmDelete,
 } = useDictController()
 
 const { hasButton } = useButtonPermission()
@@ -277,7 +277,7 @@ const onSaveDict = async () => {
                 <el-button type="primary" link :icon="Edit" @click="openEdit(row)" />
               </el-tooltip>
               <el-tooltip v-if="hasButton(CMN_BUTTON.DELETE)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.DELETE]" placement="top">
-                <el-button type="danger" link :icon="Delete" @click="confirmHardDelete(row)" />
+                <el-button type="danger" link :icon="Delete" @click="confirmDelete(row)" />
               </el-tooltip>
             </span>
           </template>

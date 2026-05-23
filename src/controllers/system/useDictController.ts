@@ -4,7 +4,7 @@
 
 import { computed, onMounted, ref, watch, type ComputedRef } from 'vue'
 import { ElMessage, ElMessageBox, type FormRules } from 'element-plus'
-import { fetchDictById, fetchDictPage, fetchDictTypes, hardDeleteDict, saveDict, toggleDictStatus } from '../../api/dict'
+import { deleteDict, fetchDictById, fetchDictPage, fetchDictTypes, saveDict, toggleDictStatus } from '../../api/dict'
 import { isSessionExpiredError } from '../../utils/sessionExpired'
 import type { DictMgmtVO } from '../../models/dictMgmt'
 
@@ -61,13 +61,13 @@ export function useDictController() {
   const loadList = async () => {
     loading.value = true
     try {
-      const listStatusFlag =
+      const status =
         statusFilter.value === '' || statusFilter.value === undefined ? undefined : Number(statusFilter.value)
       const data = await fetchDictPage({
         pageNum: page.value,
         pageSize: pageSize.value,
         searchValue: keyword.value.trim() || undefined,
-        listStatusFlag,
+        status,
       })
       tableRows.value = data.list ?? []
       total.value = data.total ?? 0
@@ -197,7 +197,7 @@ export function useDictController() {
     }
   }
 
-  const confirmHardDelete = async (row: DictMgmtVO) => {
+  const confirmDelete = async (row: DictMgmtVO) => {
     if (row.id == null) {
       return
     }
@@ -212,7 +212,7 @@ export function useDictController() {
       return
     }
     try {
-      await hardDeleteDict(row.id)
+      await deleteDict(row.id)
       ElMessage.success('已物理删除')
       void loadDictTypes()
       void loadList()
@@ -244,6 +244,6 @@ export function useDictController() {
     openEdit,
     onSubmit,
     onToggleStatus,
-    confirmHardDelete,
+    confirmDelete,
   }
 }

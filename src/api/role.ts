@@ -6,7 +6,8 @@
 import httpCommon from './httpCommon'
 import { isPeachSuccess } from '../utils/apiResult'
 import type { ApiEnvelope } from '../models/auth'
-import type { BindRoleUsersDTO, RoleMgmtVO, RolePageQuery } from '../models/roleMgmt'
+import type { RoleMgmtVO, RolePageQuery, RoleUserVO } from '../models/roleMgmt'
+import type { UserMgmtVO } from '../models/userMgmt'
 
 const BASE = '/role'
 
@@ -60,8 +61,9 @@ export async function saveRole(payload: RoleMgmtVO): Promise<string | number | u
   return body.data ?? undefined
 }
 
-export async function hardDeleteRole(id: string | number): Promise<void> {
-  const res = await httpCommon.delete<ApiEnvelope<unknown>>(`${BASE}/${id}/hard`)
+/** 物理删除：DELETE /role/{id} */
+export async function deleteRole(id: string | number): Promise<void> {
+  const res = await httpCommon.delete<ApiEnvelope<unknown>>(`${BASE}/${id}`)
   if (res.status !== 200) {
     const msg = res.data?.msg
     throw new Error(msg && typeof msg === 'string' && msg.trim() ? msg.trim() : `物理删除失败（HTTP ${res.status}）`)
@@ -72,18 +74,18 @@ export async function hardDeleteRole(id: string | number): Promise<void> {
   }
 }
 
-/** 当前角色绑定的用户主键列表 */
-export async function fetchRoleUserIds(roleId: string | number): Promise<(string | number)[]> {
-  const { data: body } = await httpCommon.get<ApiEnvelope<(string | number)[]>>(`${BASE}/${roleId}/user-ids`)
+/** 当前角色已绑定用户列表（含姓名等展示字段） */
+export async function fetchRoleUsers(roleId: string | number): Promise<UserMgmtVO[]> {
+  const { data: body } = await httpCommon.get<ApiEnvelope<UserMgmtVO[]>>(`${BASE}/${roleId}/user`)
   if (!isPeachSuccess(body.code)) {
     throw new Error(body.msg || '查询已绑定用户失败')
   }
   return body.data ?? []
 }
 
-/** 全量替换角色用户绑定 */
-export async function replaceRoleUsers(roleId: string | number, payload: BindRoleUsersDTO): Promise<void> {
-  const { data: body } = await httpCommon.put<ApiEnvelope<unknown>>(`${BASE}/${roleId}/users`, payload)
+/** 全量替换角色用户绑定；空数组表示清空 */
+export async function replaceRoleUsers(roleId: string | number, users: RoleUserVO[]): Promise<void> {
+  const { data: body } = await httpCommon.put<ApiEnvelope<unknown>>(`${BASE}/${roleId}/users`, users)
   if (!isPeachSuccess(body.code)) {
     throw new Error(body.msg || '保存用户绑定失败')
   }

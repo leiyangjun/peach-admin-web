@@ -30,7 +30,7 @@ const {
   openCreate,
   openEdit,
   onSubmit,
-  confirmHardDelete,
+  confirmDelete,
   bindDialogVisible,
   bindRoleLabel,
   bindSubmitLoading,
@@ -171,7 +171,7 @@ function userDisplayRealName(row: UserMgmtVO): string {
                 <el-button type="primary" link :icon="MenuIcon" @click="openBindMenuButtons(row)" />
               </el-tooltip>
               <el-tooltip v-if="hasButton(CMN_BUTTON.DELETE)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.DELETE]" placement="top">
-                <el-button type="danger" link :icon="Delete" @click="confirmHardDelete(row)" />
+                <el-button type="danger" link :icon="Delete" @click="confirmDelete(row)" />
               </el-tooltip>
             </span>
           </template>
@@ -234,30 +234,23 @@ function userDisplayRealName(row: UserMgmtVO): string {
       destroy-on-close
       align-center
     >
-      <div class="bind-user-topbar">
-        <div class="bind-user-topbar__left">
-          <el-tag type="info" size="small">已选 {{ bindUserIds.length }} 人</el-tag>
-          <el-button link type="warning" size="small" @click="clearBindSelection">清空已选</el-button>
-        </div>
-        <el-form :inline="true" class="bind-user-topbar__search" @submit.prevent>
-          <el-form-item label="用户关键字">
-            <el-input
-              v-model="bindPickerKeyword"
-              clearable
-              placeholder="昵称 / 姓名"
-              class="bind-user-keyword-input"
-              @keyup.enter="onBindSearch"
-            />
-          </el-form-item>
-          <el-form-item>
-            <el-button v-if="hasButton(CMN_BUTTON.QUERY)" type="primary" size="small" @click="onBindSearch">{{ CMN_BUTTON_LABEL[CMN_BUTTON.QUERY] }}</el-button>
-            <el-button v-if="hasButton(CMN_BUTTON.RESET)" size="small" @click="onBindReset">{{ CMN_BUTTON_LABEL[CMN_BUTTON.RESET] }}</el-button>
-          </el-form-item>
-        </el-form>
-      </div>
       <div class="shuttle-body">
         <div class="shuttle-col">
-          <div class="shuttle-col-title">可选用户</div>
+          <el-form :inline="true" class="shuttle-col-toolbar shuttle-col-toolbar--search" @submit.prevent>
+            <el-form-item label="用户关键字">
+              <el-input
+                v-model="bindPickerKeyword"
+                clearable
+                placeholder="昵称 / 姓名"
+                class="bind-user-keyword-input"
+                @keyup.enter="onBindSearch"
+              />
+            </el-form-item>
+            <el-form-item>
+              <el-button v-if="hasButton(CMN_BUTTON.QUERY)" type="primary" size="small" @click="onBindSearch">{{ CMN_BUTTON_LABEL[CMN_BUTTON.QUERY] }}</el-button>
+              <el-button v-if="hasButton(CMN_BUTTON.RESET)" size="small" @click="onBindReset">{{ CMN_BUTTON_LABEL[CMN_BUTTON.RESET] }}</el-button>
+            </el-form-item>
+          </el-form>
           <div class="shuttle-table-wrap">
             <el-table
               v-loading="bindPickerLoading"
@@ -294,7 +287,10 @@ function userDisplayRealName(row: UserMgmtVO): string {
           />
         </div>
         <div class="shuttle-col">
-          <div class="shuttle-col-title">已选用户</div>
+          <div class="shuttle-col-toolbar shuttle-col-toolbar--selection">
+            <el-tag type="info" size="small">已选 {{ bindUserIds.length }} 人</el-tag>
+            <el-button link type="warning" size="small" @click="clearBindSelection">清空已选</el-button>
+          </div>
           <div class="shuttle-table-wrap">
             <el-table
               :data="bindRightUsers"
@@ -441,36 +437,39 @@ function userDisplayRealName(row: UserMgmtVO): string {
   gap: 2px;
 }
 
-.bind-user-topbar {
+.shuttle-col-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px 12px;
+  gap: 8px;
   margin-bottom: 8px;
-}
-
-.bind-user-topbar__left {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-}
-
-.bind-user-topbar__search {
-  margin-bottom: 0;
-  flex: 1;
   min-width: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  column-gap: 8px;
 }
 
-.bind-user-topbar__search :deep(.el-form-item) {
+.shuttle-col-toolbar--search :deep(.el-form) {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.shuttle-col-toolbar--search :deep(.el-form-item) {
   margin-bottom: 0;
   margin-right: 0;
+  flex-shrink: 0;
+}
+
+.shuttle-col-toolbar--search :deep(.el-form-item__label) {
+  padding-right: 6px;
+}
+
+.shuttle-col-toolbar--search :deep(.el-form-item__content) {
+  flex-wrap: nowrap;
+}
+
+.shuttle-col-toolbar--selection {
+  gap: 10px;
 }
 
 .bind-user-keyword-input {
@@ -508,13 +507,6 @@ function userDisplayRealName(row: UserMgmtVO): string {
   min-width: 0;
   display: flex;
   flex-direction: column;
-}
-
-.shuttle-col-title {
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 6px;
-  color: var(--el-text-color-primary);
 }
 
 .shuttle-table-wrap {

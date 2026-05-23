@@ -25,9 +25,9 @@ export async function fetchDictPage(query: DictPageQuery): Promise<PageInfoDict>
       pageNum: query.pageNum,
       pageSize: query.pageSize,
       searchValue: query.searchValue?.trim() || undefined,
-      listStatusFlag:
-        query.listStatusFlag !== undefined && query.listStatusFlag !== ''
-          ? query.listStatusFlag
+      status:
+        query.status !== undefined && query.status !== ''
+          ? query.status
           : undefined,
       sortName: query.sortName,
       sortType: query.sortType,
@@ -81,8 +81,9 @@ export async function toggleDictStatus(id: string | number): Promise<number> {
   return Number(body.data)
 }
 
-export async function hardDeleteDict(id: string | number): Promise<void> {
-  const res = await httpCommon.delete<ApiEnvelope<unknown>>(`${BASE}/${id}/hard`)
+/** 物理删除：DELETE /dict/{id} */
+export async function deleteDict(id: string | number): Promise<void> {
+  const res = await httpCommon.delete<ApiEnvelope<unknown>>(`${BASE}/${id}`)
   if (res.status !== 200) {
     const msg = res.data?.msg
     throw new Error(msg && typeof msg === 'string' && msg.trim() ? msg.trim() : `物理删除失败（HTTP ${res.status}）`)

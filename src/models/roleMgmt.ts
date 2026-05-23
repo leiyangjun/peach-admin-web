@@ -20,7 +20,10 @@ export interface RolePageQuery {
   sortType?: string
 }
 
-/** 与后端 BindRoleUsersDTO 对齐 */
-export interface BindRoleUsersDTO {
-  userIds: (string | number)[]
+/** 与后端 RoleUserVO（cmn_role_user）对齐；提交绑定时仅需 roleId + userId */
+export interface RoleUserVO {
+  id?: string | number
+  roleId?: string | number
+  userId?: string | number
+  createTime?: string
 }

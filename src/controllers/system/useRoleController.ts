@@ -13,12 +13,12 @@ import { fetchMenuTreeValid } from '../../api/menu'
 import {
   fetchRoleById,
   fetchRolePage,
-  fetchRoleUserIds,
-  hardDeleteRole,
+  fetchRoleUsers,
+  deleteRole,
   replaceRoleUsers,
   saveRole,
 } from '../../api/role'
-import { fetchUserById, fetchUserPage } from '../../api/user'
+import { fetchUserPage } from '../../api/user'
 import { isSessionExpiredError } from '../../utils/sessionExpired'
 import { applyRoleMenuBindImplicitSelections, buildRoleMenuBindTree, type MenuBindTreeRow } from '../../utils/roleMenuBindRules'
 import type { RoleMgmtVO } from '../../models/roleMgmt'
@@ -176,7 +176,7 @@ export function useRoleController() {
     }
   }
 
-  const confirmHardDelete = async (row: RoleMgmtVO) => {
+  const confirmDelete = async (row: RoleMgmtVO) => {
     if (row.id == null) {
       return
     }
@@ -191,7 +191,7 @@ export function useRoleController() {
       return
     }
     try {
-      await hardDeleteRole(row.id)
+      await deleteRole(row.id)
       ElMessage.success('已物理删除')
       void loadList()
     } catch (e) {
@@ -199,23 +199,6 @@ export function useRoleController() {
         ElMessage.error(e instanceof Error ? e.message : '物理删除失败')
       }
     }
-  }
-
-  async function loadBindRightFromServerIds(ids: string[]) {
-    if (!ids.length) {
-      bindRightUsers.value = []
-      return
-    }
-    const rows = await Promise.all(
-      ids.map(async (id) => {
-        try {
-          return await fetchUserById(id)
-        } catch {
-          return { id, username: `（用户 ${id} 不可加载）`, nickname: '' } as UserMgmtVO
-        }
-      }),
-    )
-    bindRightUsers.value = rows
   }
 
   const bindRightUserKeySet = computed(() => new Set(bindUserIds.value))
@@ -284,8 +267,7 @@ export function useRoleController() {
     bindPickerKeyword.value = ''
     bindPickerPage.value = 1
     try {
-      const ids = await fetchRoleUserIds(row.id)
-      await loadBindRightFromServerIds(ids.map((x) => String(x)))
+      bindRightUsers.value = await fetchRoleUsers(row.id)
     } catch (e) {
       if (!isSessionExpiredError(e)) {
         ElMessage.error(e instanceof Error ? e.message : '加载已绑定用户失败')
@@ -317,7 +299,13 @@ export function useRoleController() {
     }
     bindSubmitLoading.value = true
     try {
-      await replaceRoleUsers(bindRoleId.value, { userIds: bindUserIds.value })
+      await replaceRoleUsers(
+        bindRoleId.value,
+        bindUserIds.value.map((userId) => ({
+          roleId: bindRoleId.value,
+          userId,
+        })),
+      )
       ElMessage.success('用户绑定已保存')
       bindDialogVisible.value = false
     } catch (e) {
@@ -416,7 +404,7 @@ export function useRoleController() {
     openCreate,
     openEdit,
     onSubmit,
-    confirmHardDelete,
+    confirmDelete,
     bindDialogVisible,
     bindRoleLabel,
     bindSubmitLoading,
