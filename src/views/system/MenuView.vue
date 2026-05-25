@@ -9,6 +9,7 @@ import { useMenuController } from '../../controllers/system/useMenuController'
 import { useMenuPermission } from '../../controllers/system/useMenuPermission'
 import DictButtonShuttleDialog from '../../components/DictButtonShuttleDialog.vue'
 import ApiResourceShuttleDialog from '../../components/ApiResourceShuttleDialog.vue'
+import { fetchButtonPage } from '../../api/button'
 import { BTN_UI, CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
 import { useButtonPermission } from '../../composables/useButtonPermission'
 import { useMenuPanelResize } from '../../composables/useMenuPanelResize'
@@ -18,6 +19,7 @@ import type { MenuButtonPickerRow } from '../../models/permission'
 
 /** 提交时并入 MenuInfoVO.menuButtons；在 useMenuPermission 初始化后赋值 */
 const getMenuButtonsForSaveRef = ref<(() => MenuButtonInfoItem[]) | null>(null)
+const prepareMenuButtonsForSaveRef = ref<(() => Promise<void>) | null>(null)
 
 function leftButtonRowKey(row: MenuButtonPickerRow) {
   return String(row.menuButtonId ?? row.dictButtonId ?? row.buttonCode ?? '')
@@ -47,14 +49,17 @@ const {
   menuInfo,
 } = useMenuController({
   getMenuButtonsForSave: () => getMenuButtonsForSaveRef.value?.(),
+  prepareMenuButtonsForSave: async () => {
+    await prepareMenuButtonsForSaveRef.value?.()
+  },
 })
 
 const perm = useMenuPermission(formModel, panelMode, showEditor, permissionBootstrapNonce, menuInfo)
 getMenuButtonsForSaveRef.value = () => perm.buildMenuButtonsForMenuSave()
+prepareMenuButtonsForSaveRef.value = () => perm.prepareMenuButtonsForSave()
 
 const {
   permLoading,
-  buttonDict,
   menuButtonTableRows,
   leftButtonTableRef,
   onLeftButtonCurrentChange,
@@ -62,10 +67,10 @@ const {
   rightApisLoading,
   dictShuttleVisible,
   dictShuttleSeedIds,
+  dictShuttleSeedRows,
   viewDictId,
   openDictPicker,
   onDictShuttleConfirm,
-  removeMenuButtonRow,
   isMenuType,
   discoveryServices,
   apiShuttleVisible,
@@ -366,26 +371,10 @@ watch(
                             @current-change="onLeftButtonCurrentChange"
                           >
                             <template #empty>
-                              <div class="perm-empty-add" role="button" tabindex="0" @click="openDictPicker">
-                                暂无按钮，点击此处绑定
-                              </div>
+                              <el-empty description="点击上方 + 号进行关联菜单按钮" :image-size="40" />
                             </template>
                             <el-table-column prop="buttonName" label="名称" min-width="72" show-overflow-tooltip />
                             <el-table-column prop="buttonCode" label="编码" width="92" show-overflow-tooltip />
-                            <el-table-column label="操作" width="56" fixed="right">
-                              <template #default="{ row }">
-                                <el-button
-                                  v-if="hasButton(CMN_BUTTON.DELETE)"
-                                  type="danger"
-                                  link
-                                  size="small"
-                                  :disabled="permLoading"
-                                  @click.stop="removeMenuButtonRow(row)"
-                                >
-                                  {{ CMN_BUTTON_LABEL[CMN_BUTTON.DELETE] }}
-                                </el-button>
-                              </template>
-                            </el-table-column>
                           </el-table>
                         </div>
                       </el-col>
@@ -429,7 +418,8 @@ watch(
             <DictButtonShuttleDialog
               v-model:visible="dictShuttleVisible"
               :model-value="dictShuttleSeedIds"
-              :button-dict="buttonDict"
+              :seed-rows="dictShuttleSeedRows"
+              :fetch-page="fetchButtonPage"
               :view-dict-id="viewDictId"
               @confirm="onDictShuttleConfirm"
             />
@@ -820,20 +810,6 @@ watch(
 .perm-left-table,
 .perm-right-table {
   width: 100%;
-}
-
-.perm-empty-add {
-  padding: 16px 8px;
-  text-align: center;
-  font-size: 13px;
-  color: var(--el-color-primary);
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background-color 0.15s ease;
-}
-
-.perm-empty-add:hover {
-  background: var(--el-fill-color-light);
 }
 
 .panel-header {

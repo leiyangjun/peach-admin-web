@@ -1,16 +1,19 @@
 <script setup lang="ts">
 /**
- * 绑定按钮：左右穿梭（左字典可选 + 模糊/分页，右已选）；必选 BTN_QUERY（查看/查询）。
+ * 绑定按钮：左右穿梭（左字典可选 + 服务端模糊/分页，右已选）；必选 BTN_QUERY（查看/查询）。
  */
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { BTN_UI, CMN_BUTTON, CMN_BUTTON_LABEL } from '../constants/cmnButton'
+import type { ButtonPageQuery, PageInfoButton } from '../api/button'
 import type { ButtonDictVO } from '../models/permission'
 
 const props = withDefaults(
   defineProps<{
-    /** 全量字典（父级已拉取或弹窗内拉取） */
-    buttonDict: ButtonDictVO[]
+    /** 服务端分页查询 */
+    fetchPage: (query: ButtonPageQuery) => Promise<PageInfoButton>
+    /** 打开弹窗时右侧已选行的 code/name 回显（来自本地槽） */
+    seedRows?: ButtonDictVO[]
     /** 「查看」字典主键 id 字符串，不可从右侧移除 */
     viewDictId: string | null
     /** 右侧已选字典 id 顺序（打开时回显） */
@@ -20,13 +23,14 @@ const props = withDefaults(
   }>(),
   {
     modelValue: () => [],
+    seedRows: () => [],
   },
 )
 
 const emit = defineEmits<{
   'update:visible': [v: boolean]
   'update:modelValue': [ids: string[]]
-  confirm: [orderedDictIds: string[]]
+  confirm: [orderedRows: ButtonDictVO[]]
 }>()
 
 const VIEW_CODE = 'BTN_QUERY'
@@ -41,33 +45,14 @@ const leftKeyword = ref('')
 /** 左侧分页 */
 const leftPage = ref(1)
 const leftPageSize = ref(8)
+const leftRows = ref<ButtonDictVO[]>([])
+const leftTotal = ref(0)
+const leftLoading = ref(false)
 
 /** 右侧已选 id 顺序（弹窗内编辑副本） */
 const rightIds = ref<string[]>([])
-
-const dictById = computed(() => {
-  const m = new Map<string, ButtonDictVO>()
-  for (const d of props.buttonDict) {
-    if (d.id != null) {
-      m.set(String(d.id), d)
-    }
-  }
-  return m
-})
-
-/** 左侧展示行：仅字典 + 关键字过滤 + 分页，不减去右侧已选 */
-const leftFiltered = computed(() => {
-  const q = leftKeyword.value.trim().toLowerCase()
-  let list = props.buttonDict.filter((d) => d.id != null)
-  if (q) {
-    list = list.filter((d) => {
-      const name = (d.buttonName ?? '').toLowerCase()
-      const code = (d.buttonCode ?? '').toLowerCase()
-      return name.includes(q) || code.includes(q)
-    })
-  }
-  return list
-})
+/** 已选行缓存（含分页未加载项），用于右侧展示 */
+const pickedById = ref<Map<string, ButtonDictVO>>(new Map())
 
 const rightIdSet = computed(() => new Set(rightIds.value))
 
@@ -77,18 +62,40 @@ function leftRowClassName({ row }: { row: ButtonDictVO }) {
   return id && rightIdSet.value.has(id) ? 'shuttle-row--picked' : ''
 }
 
-const leftTotal = computed(() => leftFiltered.value.length)
-
-const leftPaged = computed(() => {
-  const start = (leftPage.value - 1) * leftPageSize.value
-  return leftFiltered.value.slice(start, start + leftPageSize.value)
-})
-
 const rightRows = computed(() =>
   rightIds.value
-    .map((id) => dictById.value.get(id))
+    .map((id) => pickedById.value.get(id))
     .filter((x): x is ButtonDictVO => x != null),
 )
+
+function seedPickedMap() {
+  const m = new Map<string, ButtonDictVO>()
+  for (const row of props.seedRows ?? []) {
+    if (row.id != null) {
+      m.set(String(row.id), row)
+    }
+  }
+  pickedById.value = m
+}
+
+async function loadLeftPage() {
+  leftLoading.value = true
+  try {
+    const res = await props.fetchPage({
+      pageNum: leftPage.value,
+      pageSize: leftPageSize.value,
+      searchValue: leftKeyword.value.trim() || undefined,
+    })
+    leftRows.value = res.list
+    leftTotal.value = res.total
+  } catch (e) {
+    leftRows.value = []
+    leftTotal.value = 0
+    ElMessage.error(e instanceof Error ? e.message : '加载可选按钮失败')
+  } finally {
+    leftLoading.value = false
+  }
+}
 
 watch(
   () => props.visible,
@@ -96,18 +103,29 @@ watch(
     if (v) {
       leftKeyword.value = ''
       leftPage.value = 1
+      seedPickedMap()
       const ids = [...(props.modelValue ?? [])]
       const vid = props.viewDictId
       if (vid && !ids.includes(vid)) {
         ids.unshift(vid)
       }
       rightIds.value = ids
+      void loadLeftPage()
     }
   },
 )
 
 watch(leftKeyword, () => {
   leftPage.value = 1
+  if (props.visible) {
+    void loadLeftPage()
+  }
+})
+
+watch(leftPage, () => {
+  if (props.visible) {
+    void loadLeftPage()
+  }
 })
 
 function addLeftRow(row: ButtonDictVO) {
@@ -118,6 +136,7 @@ function addLeftRow(row: ButtonDictVO) {
   if (rightIds.value.includes(id)) {
     return
   }
+  pickedById.value.set(id, row)
   rightIds.value = [...rightIds.value, id]
 }
 
@@ -141,12 +160,15 @@ function removeRightRow(row: ButtonDictVO) {
 
 function onConfirm() {
   const vid = props.viewDictId
-  const out = [...rightIds.value]
-  if (vid && !out.includes(vid)) {
-    out.unshift(vid)
+  const outIds = [...rightIds.value]
+  if (vid && !outIds.includes(vid)) {
+    outIds.unshift(vid)
   }
-  emit('update:modelValue', out)
-  emit('confirm', out)
+  const outRows = outIds
+    .map((id) => pickedById.value.get(id))
+    .filter((x): x is ButtonDictVO => x != null)
+  emit('update:modelValue', outIds)
+  emit('confirm', outRows)
   innerVisible.value = false
 }
 
@@ -169,9 +191,9 @@ function onCancel() {
       <div class="shuttle-col">
         <div class="shuttle-col-title">可选按钮</div>
         <el-input v-model="leftKeyword" clearable size="small" placeholder="名称/编码模糊过滤" class="shuttle-search" />
-        <div class="shuttle-table-wrap">
+        <div v-loading="leftLoading" class="shuttle-table-wrap">
           <el-table
-            :data="leftPaged"
+            :data="leftRows"
             :row-class-name="leftRowClassName"
             size="small"
             border

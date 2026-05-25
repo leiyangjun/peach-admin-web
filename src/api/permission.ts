@@ -14,6 +14,7 @@ import type { CurrentUserPermissionVO } from '../models/currentUserPermission'
 
 const BASE = '/permission'
 
+/** @deprecated 请使用 {@link ./button.ts fetchButtonAll} 或 {@link ./button.ts fetchButtonPage} */
 export async function fetchButtonDict(): Promise<ButtonDictVO[]> {
   const { data: body } = await httpCommon.get<ApiEnvelope<ButtonDictVO[]>>(`${BASE}/button-dict`)
   if (!isPeachSuccess(body.code) || body.data == null) {

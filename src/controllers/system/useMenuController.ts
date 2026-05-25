@@ -62,6 +62,10 @@ function findMenuNameInTree(nodes: MenuMgmtVO[], id: string | number | null | un
 
 export type UseMenuControllerOptions = {
   /**
+   * 提交前准备 menuButtons（如目录懒加载 BTN_QUERY 字典）。
+   */
+  prepareMenuButtonsForSave?: () => Promise<void>
+  /**
    * 提交时并入 MenuInfoVO.menuButtons；与 useMenuPermission.buildMenuButtonsForMenuSave 配合。
    * 返回 `undefined` 表示本次不提交 menuButtons 字段。
    */
@@ -255,6 +259,8 @@ export function useMenuController(options?: UseMenuControllerOptions) {
 
     loading.value = true
     try {
+      await options?.prepareMenuButtonsForSave?.()
+
       const menuPayload = { ...m } as MenuMgmtVO & { componentPath?: unknown }
       delete menuPayload.componentPath
       delete menuPayload.children

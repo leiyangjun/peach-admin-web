@@ -1,6 +1,6 @@
 /**
  * 菜单页「按钮绑定 / API 绑定」：
- * - 仅 MENU 类型在界面展示配置区；目录 CATALOG 由 POST /menu 的 menuButtons 空数组触发服务端写入隐式「查看」。
+ * - 仅 MENU 类型在界面展示配置区；目录 CATALOG 保存时仍提交 BTN_QUERY 一条（无 API），与 MENU 默认「查看」一致。
  * - 按钮/API 的增删改仅更新本地状态，点击菜单「提交」时由 useMenuController 将 buildMenuButtonsForMenuSave() 并入 MenuInfoVO。
  */
 import { computed, nextTick, ref, watch, type ComputedRef, type Ref } from 'vue'
@@ -21,10 +21,11 @@ import type {
 } from '../../models/permission'
 import type { ServiceVO } from '../../models/discovery'
 import type { MenuPanelMode } from './useMenuController'
-import { fetchButtonDict } from '../../api/permission'
+import { fetchButtonAll } from '../../api/button'
 import { fetchDiscoveryServices } from '../../api/discovery'
 import { isSessionExpiredError } from '../../utils/sessionExpired'
-const VIEW_CODE = 'BTN_QUERY'
+import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
+const VIEW_CODE = CMN_BUTTON.QUERY
 const DRAFT_ROW_PREFIX = '__draft__'
 function newDraftTempKey(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -74,6 +75,16 @@ function hydrateSlotsFromMenuButtons(items: MenuButtonInfoItem[] | null | undefi
   }
   return slots
 }
+/** 判断是否为必选「查询」按钮行（BTN_QUERY，不可删除） */
+function isRequiredQueryButtonRow(
+  row: MenuButtonPickerRow,
+  viewDictId: string | null,
+): boolean {
+  return (
+    row.buttonCode === VIEW_CODE ||
+    (viewDictId != null && String(row.dictButtonId) === viewDictId)
+  )
+}
 export function useMenuPermission(
   formModel: Ref<MenuMgmtVO>,
   panelMode: Ref<MenuPanelMode>,
@@ -122,8 +133,71 @@ export function useMenuPermission(
   const apiPickerLoading = ref(false)
   const viewDictId = computed(() => {
     const hit = buttonDict.value.find((d: ButtonDictVO) => d.buttonCode === VIEW_CODE)
-    return hit?.id != null ? String(hit.id) : null
+    if (hit?.id != null) {
+      return String(hit.id)
+    }
+    const slot = localButtonSlots.value.find((s) => s.buttonCode === VIEW_CODE)
+    return slot?.dictButtonId ?? null
   })
+  /** 绑定按钮弹窗：右侧已选行的 code/name 回显 */
+  const dictShuttleSeedRows = computed((): ButtonDictVO[] =>
+    localButtonSlots.value.map((s) => ({
+      id: s.dictButtonId,
+      buttonCode: s.buttonCode,
+      buttonName: s.buttonName,
+    })),
+  )
+  /** 按需拉取全量字典（新建 MENU、目录保存、类型切回 MENU 等） */
+  async function loadButtonAllIfNeeded(): Promise<boolean> {
+    if (buttonDict.value.length) {
+      return true
+    }
+    try {
+      buttonDict.value = await fetchButtonAll()
+      return true
+    } catch (e) {
+      if (!isSessionExpiredError(e)) {
+        ElMessage.error(e instanceof Error ? e.message : '加载按钮字典失败')
+      }
+      buttonDict.value = []
+      return false
+    }
+  }
+  /** 新建/编辑 MENU：确保本地槽首行含 BTN_QUERY（字典 id 来自 loadButtonDict） */
+  function ensureDefaultQueryButton() {
+    const dict = buttonDict.value.find((d) => d.buttonCode === VIEW_CODE)
+    const dictId = dict?.id != null ? String(dict.id) : null
+    if (!dictId) {
+      return
+    }
+    const code = dict?.buttonCode ?? VIEW_CODE
+    const name = dict?.buttonName ?? CMN_BUTTON_LABEL[VIEW_CODE]
+    const existing = localButtonSlots.value.find(
+      (s) => s.buttonCode === VIEW_CODE || s.dictButtonId === dictId,
+    )
+    if (existing) {
+      if (localButtonSlots.value[0] !== existing) {
+        localButtonSlots.value = [
+          existing,
+          ...localButtonSlots.value.filter((s) => s !== existing),
+        ]
+      }
+      return
+    }
+    localButtonSlots.value = [
+      {
+        tempKey: newDraftTempKey(),
+        dictButtonId: dictId,
+        buttonCode: code,
+        buttonName: name,
+        apis: [],
+      },
+      ...localButtonSlots.value,
+    ]
+  }
+  function isRequiredQueryButton(row: MenuButtonPickerRow): boolean {
+    return isRequiredQueryButtonRow(row, viewDictId.value)
+  }
   /** 绑定按钮弹窗回显：本地槽顺序 */
   const dictShuttleSeedIds = computed(() => {
     const ids = localButtonSlots.value
@@ -151,6 +225,10 @@ export function useMenuPermission(
         const snap = savedNonDirectoryButtonsAndApis.value
         localButtonSlots.value = snap?.length ? cloneMenuButtonSlots(snap) : []
         savedNonDirectoryButtonsAndApis.value = null
+        void (async () => {
+          await loadButtonAllIfNeeded()
+          ensureDefaultQueryButton()
+        })()
       }
     },
   )
@@ -167,28 +245,21 @@ export function useMenuPermission(
     const isMenu = formModel.value.menuType === 'MENU'
     const isCreateNoId = panelMode.value === 'create' && !hasId
     if (!isMenu) {
-      if (!buttonDict.value.length) {
-        permLoading.value = true
-        try {
-          buttonDict.value = await fetchButtonDict()
-        } catch (e) {
-          if (!isSessionExpiredError(e)) {
-            ElMessage.error(e instanceof Error ? e.message : '加载字典失败')
-          }
-          buttonDict.value = []
-        } finally {
-          permLoading.value = false
-        }
-      }
       localButtonSlots.value = []
       return
     }
     if (isCreateNoId) {
+      localButtonSlots.value = []
+      savedNonDirectoryButtonsAndApis.value = null
+      selectedLeftRow.value = null
+      rightApis.value = []
+      dictShuttleVisible.value = false
+      apiShuttleVisible.value = false
       permLoading.value = true
       try {
-        if (!buttonDict.value.length) {
-          buttonDict.value = await fetchButtonDict()
-        }
+        await loadButtonAllIfNeeded()
+        ensureDefaultQueryButton()
+        await selectFirstButtonRowIfNone()
       } catch (e) {
         if (!isSessionExpiredError(e)) {
           ElMessage.error(e instanceof Error ? e.message : '加载字典失败')
@@ -206,12 +277,10 @@ export function useMenuPermission(
     const mid = String(midRaw)
     permLoading.value = true
     try {
-      if (!buttonDict.value.length) {
-        buttonDict.value = await fetchButtonDict()
-      }
       const info = menuInfo.value
       if (info?.menu?.id != null && String(info.menu.id) === mid) {
         localButtonSlots.value = hydrateSlotsFromMenuButtons(info.menuButtons)
+        ensureDefaultQueryButton()
         await selectFirstButtonRowIfNone()
       } else {
         localButtonSlots.value = []
@@ -220,7 +289,6 @@ export function useMenuPermission(
       if (!isSessionExpiredError(e)) {
         ElMessage.error(e instanceof Error ? e.message : '加载按钮权限数据失败')
       }
-      buttonDict.value = []
       localButtonSlots.value = []
     } finally {
       permLoading.value = false
@@ -270,13 +338,14 @@ export function useMenuPermission(
       selectedLeftRow.value = found
     }
   })
-  function mergeLocalSlotsFromDictOrder(orderedDictIds: string[]) {
+  function mergeLocalSlotsFromDictOrder(orderedDictIds: string[], rows?: ButtonDictVO[]) {
+    const rowById = new Map((rows ?? []).map((r) => [String(r.id), r]))
     const prevByDict = new Map(localButtonSlots.value.map((s) => [s.dictButtonId, s]))
     const next: DraftMenuButtonSlot[] = []
     for (const did of orderedDictIds) {
-      const dict = buttonDict.value.find((d) => String(d.id) === did)
-      const code = dict?.buttonCode ?? ''
-      const name = dict?.buttonName ?? ''
+      const row = rowById.get(did) ?? buttonDict.value.find((d) => String(d.id) === did)
+      const code = row?.buttonCode ?? ''
+      const name = row?.buttonName ?? ''
       const prev = prevByDict.get(did)
       if (prev) {
         next.push(prev)
@@ -292,7 +361,7 @@ export function useMenuPermission(
     }
     localButtonSlots.value = next
   }
-  const openDictPicker = async () => {
+  const openDictPicker = () => {
     if (!isDraftMode.value && (formModel.value.id == null || formModel.value.id === '')) {
       ElMessage.warning('请先保存菜单基本信息后再配置按钮。')
       return
@@ -300,28 +369,25 @@ export function useMenuPermission(
     if (permLoading.value) {
       return
     }
-    permLoading.value = true
-    try {
-      if (!buttonDict.value.length) {
-        buttonDict.value = await fetchButtonDict()
-      }
-      dictShuttleVisible.value = true
-    } catch (e) {
-      if (!isSessionExpiredError(e)) {
-        ElMessage.error(e instanceof Error ? e.message : '加载字典失败')
-      }
-    } finally {
-      permLoading.value = false
-    }
+    dictShuttleVisible.value = true
   }
-  const onDictShuttleConfirm = async (orderedIds: string[]) => {
+  const onDictShuttleConfirm = async (orderedRows: ButtonDictVO[]) => {
     const vid = viewDictId.value
-    const ids = [...orderedIds]
-    if (vid && !ids.includes(vid)) {
-      ids.unshift(vid)
+    let rows = [...orderedRows]
+    if (vid && !rows.some((r) => r.id != null && String(r.id) === vid)) {
+      const fromDict = buttonDict.value.find((d) => String(d.id) === vid)
+      const fromSlot = localButtonSlots.value.find((s) => s.dictButtonId === vid)
+      rows.unshift({
+        id: vid,
+        buttonCode: fromDict?.buttonCode ?? fromSlot?.buttonCode ?? VIEW_CODE,
+        buttonName: fromDict?.buttonName ?? fromSlot?.buttonName ?? CMN_BUTTON_LABEL[VIEW_CODE],
+      })
     }
+    const ids = rows
+      .map((r) => (r.id != null ? String(r.id) : ''))
+      .filter((x): x is string => !!x)
     const beforeDictIdSet = new Set(localButtonSlots.value.map((s) => s.dictButtonId))
-    mergeLocalSlotsFromDictOrder(ids)
+    mergeLocalSlotsFromDictOrder(ids, rows)
     dictShuttleVisible.value = false
     const added = localButtonSlots.value.filter((s) => !beforeDictIdSet.has(s.dictButtonId))
     let target: MenuButtonPickerRow | null = null
@@ -350,8 +416,8 @@ export function useMenuPermission(
     }
   }
   const removeMenuButtonRow = (row: MenuButtonPickerRow) => {
-    if (row.buttonCode === VIEW_CODE || (viewDictId.value != null && String(row.dictButtonId) === viewDictId.value)) {
-      ElMessage.warning('「查看」为必选按钮，不可移除。')
+    if (isRequiredQueryButton(row)) {
+      ElMessage.warning('「查询（BTN_QUERY）」为必选，不可移除。')
       return
     }
     const slot = getDraftSlotByRow(row)
@@ -448,13 +514,36 @@ export function useMenuPermission(
     selectedLeftRow.value = null
     rightApis.value = []
   }
+  /** 目录保存前懒加载 BTN_QUERY 字典 id */
+  async function prepareMenuButtonsForSave(): Promise<void> {
+    if (formModel.value.menuType === 'CATALOG') {
+      await loadButtonAllIfNeeded()
+    }
+  }
+  /** 目录保存：提交必选「查询」按钮行（无 API），与 MENU 的 ensureDefaultQueryButton 对齐 */
+  function buildCatalogQueryMenuButton(): MenuButtonInfoItem | null {
+    const dictId = viewDictId.value
+    if (!dictId) {
+      return null
+    }
+    const dict = buttonDict.value.find((d) => d.buttonCode === VIEW_CODE)
+    return {
+      menuButton: {
+        buttonId: dictId,
+        buttonCode: dict?.buttonCode ?? VIEW_CODE,
+        buttonName: dict?.buttonName ?? CMN_BUTTON_LABEL[VIEW_CODE],
+      },
+      buttonApis: [],
+    }
+  }
   /**
-   * 组装 POST /menu 的 menuButtons；目录传空数组由服务端仅写入 BTN_QUERY。
+   * 组装 POST /menu 的 menuButtons；CATALOG 带 BTN_QUERY 一条（界面不展示绑定区）。
    */
   function buildMenuButtonsForMenuSave(): MenuButtonInfoItem[] {
     const t = formModel.value.menuType
     if (t === 'CATALOG') {
-      return []
+      const item = buildCatalogQueryMenuButton()
+      return item ? [item] : []
     }
     if (t !== 'MENU') {
       return []
@@ -466,7 +555,8 @@ export function useMenuPermission(
         buttonCode: s.buttonCode,
         buttonName: s.buttonName,
       },
-      buttonApis: s.apis.map((a) => apiMetaToButtonApi(a)),
+      // 每条 API 须带当前按钮字典 ID，后端写入 cmn_button_api.button_id（非 null）
+      buttonApis: s.apis.map((a) => apiMetaToButtonApi(a, s.dictButtonId)),
     }))
   }
   return {
@@ -483,10 +573,12 @@ export function useMenuPermission(
     leftButtonTableRef,
     dictShuttleVisible,
     dictShuttleSeedIds,
+    dictShuttleSeedRows,
     viewDictId,
     openDictPicker,
     onDictShuttleConfirm,
     removeMenuButtonRow,
+    isRequiredQueryButton,
     isMenuType,
     discoveryServices,
     apiShuttleVisible,
@@ -497,6 +589,7 @@ export function useMenuPermission(
     onApiShuttleConfirm,
     apiRowKeyFn,
     abortCreateDraft,
+    prepareMenuButtonsForSave,
     buildMenuButtonsForMenuSave,
   }
 }

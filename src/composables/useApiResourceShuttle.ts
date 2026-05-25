@@ -2,10 +2,20 @@
  * API 资源穿梭框：服务下拉、左右列表、分页与确认。
  */
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { PEACH_COMMON_SERVICE } from '../config/gatewayOrigin'
 import type { ApiMetaDTO } from '../models/permission'
 import type { ServiceVO } from '../models/discovery'
 import { apiRowKeyFn } from './useAdminApiPicker'
 import { useGatewayAdminApiFetch } from './useGatewayAdminApiFetch'
+
+/** 微服务下拉默认项：优先 common-service，否则列表首项 */
+function pickDefaultDiscoveryServiceId(svcs: ServiceVO[]): string {
+  if (!svcs.length) {
+    return ''
+  }
+  const hit = svcs.find((s) => s.serviceId === PEACH_COMMON_SERVICE)
+  return hit?.serviceId ?? svcs[0]!.serviceId
+}
 
 export interface UseApiResourceShuttleOptions {
   visible: () => boolean
@@ -73,14 +83,36 @@ export function useApiResourceShuttle(options: UseApiResourceShuttleOptions) {
         const initSid =
           (options.initialServiceId() ?? '').trim() ||
           fromModel ||
-          (svcs.length ? svcs[0]!.serviceId : '')
+          pickDefaultDiscoveryServiceId(svcs)
         fetch.serviceId.value = initSid
         fetch.method.value = (options.forceHttpMethod() ?? '').trim() || ''
         fetch.keyword.value = ''
         rightList.value = (options.modelValue() ?? []).map((x) => ({ ...x }))
         fetch.rawList.value = []
         leftPage.value = 1
+        const sidAfterOpen = (fetch.serviceId.value ?? '').trim()
+        if (sidAfterOpen) {
+          void loadApis()
+        }
       }
+    },
+  )
+
+  /** 弹窗已开、服务列表晚于 visible 到达时补选默认服务（赋值会触发 serviceId watch 拉取） */
+  watch(
+    () => [options.visible(), options.discoveryServices()] as const,
+    ([visible, svcs]) => {
+      if (!visible || !svcs.length) {
+        return
+      }
+      const sid = (fetch.serviceId.value ?? '').trim()
+      if (sid) {
+        if (!fetch.rawList.value.length && !fetch.listLoading.value) {
+          void loadApis()
+        }
+        return
+      }
+      fetch.serviceId.value = pickDefaultDiscoveryServiceId(svcs)
     },
   )
 

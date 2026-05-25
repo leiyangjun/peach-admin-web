@@ -186,12 +186,12 @@ export function buttonApiToApiMeta(vo: ButtonApiVO): ApiMetaDTO {
 
 
 
-/** ApiMetaDTO → POST MenuInfoVO 中的 buttonApis 项 */
-
-export function apiMetaToButtonApi(meta: ApiMetaDTO): ButtonApiVO {
-
-  return { ...meta }
-
+/** ApiMetaDTO → POST MenuInfoVO 中的 buttonApis 项；须携带 buttonId（cmn_button 字典主键） */
+export function apiMetaToButtonApi(meta: ApiMetaDTO, buttonId: string | number): ButtonApiVO {
+  return {
+    ...meta,
+    buttonId,
+  }
 }
 
 

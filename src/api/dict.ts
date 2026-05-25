@@ -73,12 +73,12 @@ export async function saveDict(payload: DictMgmtVO): Promise<string | number | u
   return body.data ?? undefined
 }
 
-export async function toggleDictStatus(id: string | number): Promise<number> {
-  const { data: body } = await httpCommon.post<ApiEnvelope<number>>(`${BASE}/${id}/toggle-status`)
-  if (!isPeachSuccess(body.code) || body.data == null) {
+/** 切换启用状态；后端返回 ApiResult<Void>（data 恒为 null），仅校验 code */
+export async function toggleDictStatus(id: string | number): Promise<void> {
+  const { data: body } = await httpCommon.post<ApiEnvelope<unknown>>(`${BASE}/${id}/toggle-status`)
+  if (!isPeachSuccess(body.code)) {
     throw new Error(body.msg || '切换状态失败')
   }
-  return Number(body.data)
 }
 
 /** 物理删除：DELETE /dict/{id} */
