@@ -25,15 +25,13 @@ export interface MenuButtonPickerRow {
 /** 新建菜单未保存时，前端草稿按钮槽（结构与落库后绑定一致） */
 export interface DraftMenuButtonSlot {
   tempKey: string
+  /** cmn_button 字典主键 */
   dictButtonId: string
+  /** 已落库的 cmn_menu_button.id（编辑回显时有值） */
+  menuButtonId?: string
   buttonCode: string
   buttonName: string
   apis: ApiMetaDTO[]
-}
-
-export interface RegistryServiceItem {
-  serviceId: string
-  displayName: string
 }
 
 /** 与后端 ApiMeta 对齐 */

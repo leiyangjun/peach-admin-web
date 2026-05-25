@@ -4,9 +4,9 @@
  * 结构应与 peach-common-service 中 init_data.sql 的 cmn_menu 层级一致（route_path / icon 对齐）。
  */
 
-import type { MenuMgmtVO } from '../models/menuMgmt'
+import type { UserMenuVO } from '../models/menuMgmt'
 
-export const STATIC_SIDEBAR_MENU_TREE: MenuMgmtVO[] = [
+export const STATIC_SIDEBAR_MENU_TREE: UserMenuVO[] = [
   {
     id: 'st-home-root',
     menuCode: 'NAV_HOME',

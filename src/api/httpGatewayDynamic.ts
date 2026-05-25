@@ -1,16 +1,17 @@
 import axios from 'axios'
 import JSONbigint from 'json-bigint'
+import { resolveGatewayDynamicBaseUrl } from '../config/gatewayOrigin'
 import { setupAuthInterceptors } from './setupAuthInterceptors'
 
 /** 超出 JS 安全整数范围的 JSON 整型按字符串解析，保留雪花 ID 精度。 */
 const jsonParser = JSONbigint({ storeAsString: true })
 
 /**
- * 直连网关上的各微服务管理端路径（URL 以 `/` + serviceId 开头，不经 `/api-common` 改写）。
- * 开发环境依赖 vite 将 `/peach-*` 代理到本地网关，见 vite.config.ts。
+ * 经网关访问各微服务（URL 以 `/{serviceId}` 开头）。
+ * baseURL 为 {@link resolveGatewayDynamicBaseUrl}，开发默认 `http://127.0.0.1:8090`。
  */
 const httpGatewayDynamic = axios.create({
-  baseURL: '',
+  baseURL: resolveGatewayDynamicBaseUrl(),
   timeout: 30000,
   transformResponse: [
     (data) => {

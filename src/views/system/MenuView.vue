@@ -9,15 +9,15 @@ import { useMenuController } from '../../controllers/system/useMenuController'
 import { useMenuPermission } from '../../controllers/system/useMenuPermission'
 import DictButtonShuttleDialog from '../../components/DictButtonShuttleDialog.vue'
 import ApiResourceShuttleDialog from '../../components/ApiResourceShuttleDialog.vue'
-import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
+import { BTN_UI, CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
 import { useButtonPermission } from '../../composables/useButtonPermission'
 import { useMenuPanelResize } from '../../composables/useMenuPanelResize'
 import { MENU_ICON_OPTIONS, type MenuIconOption } from '../../constants/menuIconOptions'
-import type { MenuMgmtButtonBindingItem, MenuMgmtVO } from '../../models/menuMgmt'
+import type { MenuButtonInfoItem, MenuMgmtVO } from '../../models/menuMgmt'
 import type { MenuButtonPickerRow } from '../../models/permission'
 
-/** 提交时并入 buttonBindings；在 useMenuPermission 初始化后赋值 */
-const getButtonBindingsForSaveRef = ref<(() => MenuMgmtButtonBindingItem[]) | null>(null)
+/** 提交时并入 MenuInfoVO.menuButtons；在 useMenuPermission 初始化后赋值 */
+const getMenuButtonsForSaveRef = ref<(() => MenuButtonInfoItem[]) | null>(null)
 
 function leftButtonRowKey(row: MenuButtonPickerRow) {
   return String(row.menuButtonId ?? row.dictButtonId ?? row.buttonCode ?? '')
@@ -44,12 +44,13 @@ const {
   onTreeNodeClick: onTreeNodeClickBase,
   cancelPanel: cancelPanelBase,
   permissionBootstrapNonce,
+  menuInfo,
 } = useMenuController({
-  getButtonBindingsForSave: () => getButtonBindingsForSaveRef.value?.(),
+  getMenuButtonsForSave: () => getMenuButtonsForSaveRef.value?.(),
 })
 
-const perm = useMenuPermission(formModel, panelMode, showEditor, permissionBootstrapNonce)
-getButtonBindingsForSaveRef.value = () => perm.buildButtonBindingsForMenuSave()
+const perm = useMenuPermission(formModel, panelMode, showEditor, permissionBootstrapNonce, menuInfo)
+getMenuButtonsForSaveRef.value = () => perm.buildMenuButtonsForMenuSave()
 
 const {
   permLoading,
@@ -66,7 +67,7 @@ const {
   onDictShuttleConfirm,
   removeMenuButtonRow,
   isMenuType,
-  registryServices,
+  discoveryServices,
   apiShuttleVisible,
   apiShuttleSeedApis,
   apiShuttleButtonLabel,
@@ -341,7 +342,7 @@ watch(
                     <el-row :gutter="12" class="menu-perm-split">
                       <el-col :xs="24" :sm="9" :md="9">
                         <div class="perm-left-col-stack">
-                          <el-tooltip v-if="hasButton(CMN_BUTTON.BIND_BUTTON)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.BIND_BUTTON]" placement="top" class="perm-button-add-tip">
+                          <el-tooltip v-if="hasButton(CMN_BUTTON.ADD)" :content="BTN_UI.BIND_BUTTON" placement="top" class="perm-button-add-tip">
                             <button
                               type="button"
                               class="perm-button-table-add"
@@ -436,7 +437,7 @@ watch(
             <ApiResourceShuttleDialog
               v-model:visible="apiShuttleVisible"
               :model-value="apiShuttleSeedApis"
-              :registry-services="registryServices"
+              :discovery-services="discoveryServices"
               :button-label="apiShuttleButtonLabel"
               @confirm="onApiShuttleConfirm"
             />
@@ -447,7 +448,7 @@ watch(
                   {{ CMN_BUTTON_LABEL[CMN_BUTTON.DELETE] }}
                 </el-button>
                 <el-button v-if="hasButton(CMN_BUTTON.CANCEL)" @click="cancelPanel">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
-                <el-button v-if="hasButton(CMN_BUTTON.SUBMIT)" type="primary" @click="submitForm">{{ CMN_BUTTON_LABEL[CMN_BUTTON.SUBMIT] }}</el-button>
+                <el-button v-if="hasButton(CMN_BUTTON.EDIT)" type="primary" @click="submitForm">{{ BTN_UI.SUBMIT }}</el-button>
               </div>
             </div>
           </div>

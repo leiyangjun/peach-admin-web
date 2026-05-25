@@ -3,7 +3,7 @@
  * 组件文件由 route_path 按约定解析，不再依赖服务端 component_path。
  */
 import type { Router, RouteRecordRaw } from 'vue-router'
-import type { MenuMgmtVO } from '../models/menuMgmt'
+import type { UserMenuVO } from '../models/menuMgmt'
 import { parseMenuRoutePath } from '../utils/menuRoutePath'
 import { resolveViewLoaderFromInternalPath } from '../utils/viewRouteResolver'
 
@@ -23,7 +23,7 @@ let permissionMenuBundleRegistered = false
  * @returns 本次是否新完成注册；为 true 时调用方应在导航守卫里 `next({ ...to, replace: true })`，
  * 否则首屏直达深链（如新窗口 `/system/menu`）在 addRoute 之后不会重新匹配，会出现白屏。
  */
-export function registerStaticSidebarMenuBundleOnce(router: Router, tree: MenuMgmtVO[]): boolean {
+export function registerStaticSidebarMenuBundleOnce(router: Router, tree: UserMenuVO[]): boolean {
   if (staticSidebarBundleRegistered) {
     return false
   }
@@ -35,7 +35,7 @@ export function registerStaticSidebarMenuBundleOnce(router: Router, tree: MenuMg
 /**
  * 将当前用户权限菜单树注册为 AdminShell 子路由，全会话仅执行一次。
  */
-export function registerPermissionMenuBundleOnce(router: Router, tree: MenuMgmtVO[]): boolean {
+export function registerPermissionMenuBundleOnce(router: Router, tree: UserMenuVO[]): boolean {
   if (permissionMenuBundleRegistered) {
     return false
   }
@@ -57,7 +57,7 @@ function isReservedStaticPath(fullPath: string): boolean {
   return p === 'dashboard' || p.startsWith('frame/') || p.startsWith('system/scheduler/edit')
 }
 
-function collectMenuRoutes(nodes: MenuMgmtVO[] | null | undefined, out: MenuMgmtVO[]): void {
+function collectMenuRoutes(nodes: UserMenuVO[] | null | undefined, out: UserMenuVO[]): void {
   if (!nodes?.length) {
     return
   }
@@ -85,8 +85,8 @@ function childPathFromFull(fullPath: string): string {
 /**
  * 向主布局（name === parentName）注册动态子路由；同名 name 已存在则跳过。
  */
-export function registerRoutesFromMenuTree(router: Router, tree: MenuMgmtVO[], parentName: string): void {
-  const menus: MenuMgmtVO[] = []
+export function registerRoutesFromMenuTree(router: Router, tree: UserMenuVO[], parentName: string): void {
+  const menus: UserMenuVO[] = []
   collectMenuRoutes(tree, menus)
   for (const m of menus) {
     const parsed = parseMenuRoutePath(m.routePath)

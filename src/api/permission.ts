@@ -1,14 +1,15 @@
 /**
- * 权限相关 API：菜单按钮字典、菜单/角色绑定、注册服务列表、菜单按钮已绑 API、网关直连拉取 admin API。
- * 业务路径前缀与 {@link ./httpCommon} 一致：/api-common + 管理上下文 + /permission。
+ * 权限相关 API：菜单按钮字典、菜单/角色绑定、菜单按钮已绑 API、网关直连拉取 admin API。
+ * 服务发现列表见 {@link ./discovery.ts}（GET /discovery）。
+ * 业务路径经 {@link ./httpCommon}（网关 `/peach-common-service/admin`）+ `/permission`。
  */
 
 import httpCommon from './httpCommon'
-import httpGatewayDynamic from './httpGatewayDynamic'
-import { ADMIN_API_PATH_PREFIX } from '../config/adminApiPrefix'
 import { isPeachSuccess } from '../utils/apiResult'
 import type { ApiEnvelope } from '../models/auth'
-import type { ApiMetaDTO, ButtonDictVO, MenuButtonPickerRow, RegistryServiceItem } from '../models/permission'
+import type { ApiMetaDTO, ButtonDictVO, MenuButtonPickerRow } from '../models/permission'
+
+export { fetchGatewayAdminApis } from './gateway'
 import type { CurrentUserPermissionVO } from '../models/currentUserPermission'
 
 const BASE = '/permission'
@@ -31,7 +32,7 @@ export async function fetchMenuButtonBindRows(menuId: string | number): Promise<
   return body.data
 }
 
-/** @deprecated 请使用 POST /menu 并在请求体中携带 `buttonBindings`，与菜单同事务保存。 */
+/** @deprecated 请使用 POST /menu 并在请求体中携带 `menuButtons`（MenuInfoVO），与菜单同事务保存。 */
 export async function replaceMenuButtons(menuId: string | number, dictButtonIds: string[]): Promise<void> {
   const { data: body } = await httpCommon.put<ApiEnvelope<unknown>>(`${BASE}/menu/${menuId}/buttons`, {
     dictButtonIds,
@@ -39,14 +40,6 @@ export async function replaceMenuButtons(menuId: string | number, dictButtonIds:
   if (!isPeachSuccess(body.code)) {
     throw new Error(body.msg || '保存菜单按钮失败')
   }
-}
-
-export async function fetchRegistryServices(): Promise<RegistryServiceItem[]> {
-  const { data: body } = await httpCommon.get<ApiEnvelope<RegistryServiceItem[]>>(`${BASE}/registry/services`)
-  if (!isPeachSuccess(body.code) || body.data == null) {
-    throw new Error(body.msg || '加载服务列表失败')
-  }
-  return body.data
 }
 
 /** 某菜单按钮已绑定 API（与后端 ApiMeta 对齐），不依赖菜单主表提交。 */
@@ -60,35 +53,7 @@ export async function fetchMenuButtonApis(menuButtonId: string | number): Promis
   return body.data
 }
 
-/**
- * 经开发代理直连网关拉取指定服务的管理端 API 目录（GET …/apis/type/admin）。
- */
-export async function fetchGatewayAdminApis(
-  serviceId: string,
-  method?: string,
-  keyword?: string,
-): Promise<ApiMetaDTO[]> {
-  const sid = serviceId.trim()
-  const path = `/${encodeURIComponent(sid)}${ADMIN_API_PATH_PREFIX}/apis/type/admin`
-  const mt = method?.trim()
-  const kw = keyword?.trim()
-  const params: Record<string, string> = {}
-  if (mt) {
-    params.method = mt
-  }
-  if (kw) {
-    params.keyword = kw
-  }
-  const { data: body } = await httpGatewayDynamic.get<ApiEnvelope<ApiMetaDTO[]>>(path, {
-    params,
-  })
-  if (!isPeachSuccess(body.code) || body.data == null) {
-    throw new Error(body.msg || '拉取 Admin API 失败')
-  }
-  return body.data
-}
-
-/** @deprecated 请使用 POST /menu 并在请求体中携带 `buttonBindings`，与菜单同事务保存。 */
+/** @deprecated 请使用 POST /menu 并在请求体中携带 `menuButtons`（MenuInfoVO），与菜单同事务保存。 */
 export async function replaceMenuButtonApis(menuButtonId: string | number, apis: ApiMetaDTO[]): Promise<void> {
   const { data: body } = await httpCommon.put<ApiEnvelope<unknown>>(
     `${BASE}/menu-button/${menuButtonId}/apis`,
@@ -116,6 +81,7 @@ export async function replaceRoleMenuButtons(roleId: string | number, menuButton
   }
 }
 
+/** @deprecated 请使用 {@link ../api/role.ts fetchCurrentUserMenuTree} 与 {@link ../api/role.ts fetchCurrentUserMenuButtons} */
 export async function fetchCurrentUserPermission(): Promise<CurrentUserPermissionVO> {
   const { data: body } = await httpCommon.get<ApiEnvelope<CurrentUserPermissionVO>>(`${BASE}/current-user`)
   if (!isPeachSuccess(body.code) || body.data == null) {

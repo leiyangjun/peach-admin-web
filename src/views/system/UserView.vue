@@ -5,7 +5,7 @@
  */
 
 import { Delete, Edit, Key, Plus, View } from '@element-plus/icons-vue'
-import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
+import { BTN_UI, CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
 import { useButtonPermission } from '../../composables/useButtonPermission'
 import { useUserController } from '../../controllers/system/useUserController'
 
@@ -69,7 +69,7 @@ function userTypeLabel(t: string | undefined) {
           </el-form-item>
           <el-form-item>
             <el-button v-if="hasButton(CMN_BUTTON.QUERY)" type="primary" @click="onSearch">{{ CMN_BUTTON_LABEL[CMN_BUTTON.QUERY] }}</el-button>
-            <el-button v-if="hasButton(CMN_BUTTON.RESET)" @click="onReset">{{ CMN_BUTTON_LABEL[CMN_BUTTON.RESET] }}</el-button>
+            <el-button v-if="hasButton(CMN_BUTTON.QUERY)" @click="onReset">{{ BTN_UI.RESET }}</el-button>
           </el-form-item>
           <el-form-item v-if="hasButton(CMN_BUTTON.ADD)" class="right-btn">
             <el-button type="success" :icon="Plus" @click="openCreate">{{ CMN_BUTTON_LABEL[CMN_BUTTON.ADD] }}</el-button>
@@ -101,14 +101,14 @@ function userTypeLabel(t: string | undefined) {
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <span class="user-table-ops">
-              <el-tooltip v-if="hasButton(CMN_BUTTON.DEFAULT)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.DEFAULT]" placement="top">
+              <el-tooltip v-if="hasButton(CMN_BUTTON.QUERY)" :content="BTN_UI.VIEW" placement="top">
                 <el-button type="primary" link :icon="View" @click="openDetail(row)" />
               </el-tooltip>
               <template v-if="isSystemUser(row)">
                 <el-tooltip v-if="hasButton(CMN_BUTTON.EDIT)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.EDIT]" placement="top">
                   <el-button type="primary" link :icon="Edit" @click="openEdit(row)" />
                 </el-tooltip>
-                <el-tooltip v-if="hasButton(CMN_BUTTON.RESET_PASSWORD)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.RESET_PASSWORD]" placement="top">
+                <el-tooltip v-if="hasButton(CMN_BUTTON.EDIT)" :content="BTN_UI.RESET_PASSWORD" placement="top">
                   <el-button type="warning" link :icon="Key" @click="openResetPassword(row)" />
                 </el-tooltip>
                 <el-tooltip v-if="hasButton(CMN_BUTTON.DELETE)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.DELETE]" placement="top">
@@ -197,8 +197,8 @@ function userTypeLabel(t: string | undefined) {
         </template>
         <template v-else>
           <el-button v-if="hasButton(CMN_BUTTON.CANCEL)" @click="dialogVisible = false">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
-          <el-button v-if="hasButton(CMN_BUTTON.SAVE)" type="primary" :loading="submitLoading" @click="onSubmit">
-            {{ CMN_BUTTON_LABEL[CMN_BUTTON.SAVE] }}
+          <el-button v-if="hasButton(CMN_BUTTON.EDIT)" type="primary" :loading="submitLoading" @click="onSubmit">
+            {{ BTN_UI.SAVE }}
           </el-button>
         </template>
       </template>
@@ -215,8 +215,8 @@ function userTypeLabel(t: string | undefined) {
       </el-form>
       <template #footer>
         <el-button v-if="hasButton(CMN_BUTTON.CANCEL)" @click="resetPwdVisible = false">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
-        <el-button v-if="hasButton(CMN_BUTTON.SAVE)" type="primary" :loading="resetPwdLoading" @click="submitResetPassword">
-          {{ CMN_BUTTON_LABEL[CMN_BUTTON.SAVE] }}
+        <el-button v-if="hasButton(CMN_BUTTON.EDIT)" type="primary" :loading="resetPwdLoading" @click="submitResetPassword">
+          {{ BTN_UI.SAVE }}
         </el-button>
       </template>
     </el-dialog>

@@ -5,7 +5,7 @@
 import axios from 'axios'
 
 const uri = axios.getUri({
-  baseURL: '/api/admin',
+  baseURL: 'http://127.0.0.1:8090/peach-common-service/admin',
   url: '/user/page',
   params: {
     pageNum: 1,

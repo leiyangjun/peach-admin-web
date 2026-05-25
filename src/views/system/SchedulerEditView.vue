@@ -9,6 +9,7 @@ import VcrontabCronField from '../../components/VcrontabCronField.vue'
 import { useSchedulerEditController } from '../../controllers/system/useSchedulerEditController'
 
 const {
+  BTN_UI,
   CMN_BUTTON,
   CMN_BUTTON_LABEL,
   hasButton,
@@ -18,7 +19,7 @@ const {
   submitLoading,
   toggleLoading,
   formRef: schedulerFormRef,
-  registryServices,
+  discoveryServices,
   apiPickerVisible,
   shuttleModel,
   isEdit,
@@ -228,17 +229,17 @@ function bindSchedulerForm(el: unknown) {
         <div class="scheduler-edit-footer form-footer-bar">
           <div class="footer-actions">
             <el-button v-if="hasButton(CMN_BUTTON.CANCEL)" @click="closeCurrentTab">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
-            <el-button v-if="hasButton(CMN_BUTTON.SAVE)" type="primary" :loading="submitLoading" @click="onSubmit">
-              {{ CMN_BUTTON_LABEL[CMN_BUTTON.SAVE] }}
+            <el-button v-if="hasButton(CMN_BUTTON.EDIT)" type="primary" :loading="submitLoading" @click="onSubmit">
+              {{ BTN_UI.SAVE }}
             </el-button>
             <el-button
-              v-if="isEdit && form.id && (hasButton(CMN_BUTTON.PAUSE) || hasButton(CMN_BUTTON.RESUME))"
+              v-if="isEdit && form.id && hasButton(CMN_BUTTON.EDIT)"
               :type="form.enabled ? 'warning' : 'success'"
               :loading="toggleLoading"
               plain
               @click="onToggleEnabled"
             >
-              {{ form.enabled ? CMN_BUTTON_LABEL[CMN_BUTTON.PAUSE] : CMN_BUTTON_LABEL[CMN_BUTTON.RESUME] }}
+              {{ form.enabled ? BTN_UI.PAUSE : BTN_UI.RESUME }}
             </el-button>
           </div>
         </div>
@@ -248,7 +249,7 @@ function bindSchedulerForm(el: unknown) {
     <ApiResourceShuttleDialog
       v-model:visible="apiPickerVisible"
       v-model:model-value="shuttleModel"
-      :registry-services="registryServices"
+      :discovery-services="discoveryServices"
       :initial-service-id="apiPickerInitialServiceId"
       title-suffix="定时任务"
       :max-right="1"

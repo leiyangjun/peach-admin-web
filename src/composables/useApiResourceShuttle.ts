@@ -2,13 +2,14 @@
  * API 资源穿梭框：服务下拉、左右列表、分页与确认。
  */
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import type { ApiMetaDTO, RegistryServiceItem } from '../models/permission'
+import type { ApiMetaDTO } from '../models/permission'
+import type { ServiceVO } from '../models/discovery'
 import { apiRowKeyFn } from './useAdminApiPicker'
 import { useGatewayAdminApiFetch } from './useGatewayAdminApiFetch'
 
 export interface UseApiResourceShuttleOptions {
   visible: () => boolean
-  registryServices: () => RegistryServiceItem[]
+  discoveryServices: () => ServiceVO[]
   modelValue: () => ApiMetaDTO[]
   initialServiceId: () => string
   forceHttpMethod: () => string
@@ -65,7 +66,7 @@ export function useApiResourceShuttle(options: UseApiResourceShuttleOptions) {
     () => options.visible(),
     (v) => {
       if (v) {
-        const svcs = options.registryServices()
+        const svcs = options.discoveryServices()
         const fromModel = (options.modelValue() ?? [])
           .find((x) => (x.serviceName ?? '').trim())
           ?.serviceName?.trim()

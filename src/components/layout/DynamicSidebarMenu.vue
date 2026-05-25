@@ -2,7 +2,7 @@
 /**
  * 递归侧栏：目录 CATALOG 为子菜单，MENU 为可点击项（index 为数据库 route_path 原文）。
  */
-import type { MenuMgmtVO } from '../../models/menuMgmt'
+import type { UserMenuVO } from '../../models/menuMgmt'
 import { resolveMenuIconComponent } from '../../constants/menuIconOptions'
 import { Menu as MenuIcon } from '@element-plus/icons-vue'
 
@@ -11,18 +11,18 @@ defineOptions({
 })
 
 const props = defineProps<{
-  nodes: MenuMgmtVO[]
+  nodes: UserMenuVO[]
 }>()
 
-function iconFor(node: MenuMgmtVO) {
+function iconFor(node: UserMenuVO) {
   return resolveMenuIconComponent(node.icon) ?? MenuIcon
 }
 
-function visibleChildren(node: MenuMgmtVO): MenuMgmtVO[] {
+function visibleChildren(node: UserMenuVO): UserMenuVO[] {
   return (node.children ?? []).filter((c) => c.valid === undefined || c.valid === null || Number(c.valid) === 1)
 }
 
-function isMenuRow(node: MenuMgmtVO): boolean {
+function isMenuRow(node: UserMenuVO): boolean {
   return node.menuType === 'MENU' && !!(node.routePath ?? '').trim()
 }
 </script>

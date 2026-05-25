@@ -6,10 +6,30 @@
 import httpCommon from './httpCommon'
 import { isPeachSuccess } from '../utils/apiResult'
 import type { ApiEnvelope } from '../models/auth'
+import type { UserMenuVO } from '../models/menuMgmt'
 import type { RoleMgmtVO, RolePageQuery, RoleUserVO } from '../models/roleMgmt'
 import type { UserMgmtVO } from '../models/userMgmt'
 
 const BASE = '/role'
+
+/** 当前登录用户可见菜单树（GET /admin/role/user/menus） */
+export async function fetchCurrentUserMenuTree(): Promise<UserMenuVO[]> {
+  const { data: body } = await httpCommon.get<ApiEnvelope<UserMenuVO[]>>(`${BASE}/user/menus`)
+  if (!isPeachSuccess(body.code)) {
+    throw new Error(body.msg || '加载当前用户菜单失败')
+  }
+  return body.data ?? []
+}
+
+/** 当前用户对指定菜单已授权按钮 CODE 列表（GET /admin/role/user/{menuId}/buttons） */
+export async function fetchCurrentUserMenuButtons(menuId: string | number): Promise<string[]> {
+  const id = encodeURIComponent(String(menuId))
+  const { data: body } = await httpCommon.get<ApiEnvelope<string[]>>(`${BASE}/user/${id}/buttons`)
+  if (!isPeachSuccess(body.code)) {
+    throw new Error(body.msg || '加载菜单按钮权限失败')
+  }
+  return body.data ?? []
+}
 
 export interface PageInfoRole {
   list: RoleMgmtVO[]

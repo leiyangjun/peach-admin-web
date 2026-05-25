@@ -3,7 +3,7 @@
  */
 import { onBeforeUnmount, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { fetchGatewayAdminApis } from '../api/permission'
+import { fetchGatewayAdminApis } from '../api/gateway'
 import type { ApiMetaDTO } from '../models/permission'
 import { isSessionExpiredError } from '../utils/sessionExpired'
 

@@ -14,7 +14,7 @@ import { STATIC_SIDEBAR_MENU_TREE } from '../../config/staticSidebarMenus'
 import type { PasswordFormModel, ProfileFormModel } from '../../models/auth'
 import { openExternalPage, openInternalRouteInNewWindow } from '../../utils/navigation'
 import { parseMenuRoutePath } from '../../utils/menuRoutePath'
-import { findMenuTitleByRoutePath } from '../../utils/menuTreeWalk'
+import { findMenuNodeByRoutePath, findMenuTitleByRoutePath } from '../../utils/menuTreeWalk'
 import { resetFullUserSession } from '../../utils/userSessionReset'
 import {
   loadPersistedOpenTabs,
@@ -107,6 +107,32 @@ export function useLayoutController() {
     confirmPassword: [{ required: true, message: '请再次输入新密码', trigger: 'blur' }],
   }
 
+  /** 站内路由或嵌入页对应菜单：懒加载该页按钮权限 */
+  const syncButtonsForActiveRoute = () => {
+    if (route.path === '/login' || !permissionStore.loaded) {
+      return
+    }
+    if (route.path === '/frame/embed') {
+      const rk = route.query.rk
+      if (typeof rk === 'string' && rk.trim()) {
+        void permissionStore.loadButtonsForRoutePath(rk.trim())
+      }
+      return
+    }
+    if (route.path === '/dashboard') {
+      return
+    }
+    void permissionStore.loadButtonsForRoutePath(route.path)
+  }
+
+  watch(
+    () => [route.path, route.query.rk, permissionStore.loaded] as const,
+    () => {
+      syncButtonsForActiveRoute()
+    },
+    { immediate: true },
+  )
+
   watch(
     () => route.fullPath,
     () => {
@@ -190,6 +216,10 @@ export function useLayoutController() {
     }
     const title = findMenuTitleByRoutePath(menuTree.value, index) ?? '页面'
     if (parsed.kind === 'internal') {
+      const menuNode = findMenuNodeByRoutePath(menuTree.value, index)
+      if (menuNode?.id) {
+        void permissionStore.loadButtonsForMenuId(menuNode.id, menuNode)
+      }
       void router.push(parsed.path)
       return
     }

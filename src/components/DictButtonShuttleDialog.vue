@@ -1,10 +1,10 @@
 <script setup lang="ts">
 /**
- * 绑定按钮：左右穿梭（左字典可选 + 模糊/分页，右已选）；必选 BTN_DEFAULT。
+ * 绑定按钮：左右穿梭（左字典可选 + 模糊/分页，右已选）；必选 BTN_QUERY（查看/查询）。
  */
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../constants/cmnButton'
+import { BTN_UI, CMN_BUTTON, CMN_BUTTON_LABEL } from '../constants/cmnButton'
 import type { ButtonDictVO } from '../models/permission'
 
 const props = withDefaults(
@@ -29,7 +29,7 @@ const emit = defineEmits<{
   confirm: [orderedDictIds: string[]]
 }>()
 
-const VIEW_CODE = 'BTN_DEFAULT'
+const VIEW_CODE = 'BTN_QUERY'
 
 const innerVisible = computed({
   get: () => props.visible,
@@ -128,7 +128,7 @@ function removeRightRow(row: ButtonDictVO) {
   }
   const vid = props.viewDictId
   if (vid && id === vid) {
-    ElMessage.warning('「查看(默认)（BTN_DEFAULT）」为必选，不可移除。')
+    ElMessage.warning('「查询（BTN_QUERY）」为必选，不可移除。')
     return
   }
   const isViewCode = (row.buttonCode ?? '') === VIEW_CODE
@@ -221,7 +221,7 @@ function onCancel() {
     </div>
     <template #footer>
       <el-button @click="onCancel">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
-      <el-button type="primary" @click="onConfirm">{{ CMN_BUTTON_LABEL[CMN_BUTTON.SAVE] }}</el-button>
+      <el-button type="primary" @click="onConfirm">{{ BTN_UI.SAVE }}</el-button>
     </template>
   </el-dialog>
 </template>

@@ -6,7 +6,7 @@ import { computed, onMounted, ref } from 'vue'
 
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-import type { MenuMgmtButtonBindingItem, MenuMgmtVO } from '../../models/menuMgmt'
+import type { MenuButtonInfoItem, MenuInfoVO, MenuMgmtVO } from '../../models/menuMgmt'
 
 import { deleteMenuPhysically, fetchMenuById, fetchMenuTreeAll, saveMenu } from '../../api/menu'
 
@@ -29,7 +29,7 @@ function emptyForm(parentId: string | number | null | undefined): MenuMgmtVO {
   }
 }
 
-function cloneFormFromDetail(d: MenuMgmtVO): MenuMgmtVO {
+function cloneFormFromMenu(d: MenuMgmtVO): MenuMgmtVO {
   return {
     ...d,
     children: undefined,
@@ -62,16 +62,16 @@ function findMenuNameInTree(nodes: MenuMgmtVO[], id: string | number | null | un
 
 export type UseMenuControllerOptions = {
   /**
-   * 提交菜单时并入 `buttonBindings`；与 useMenuPermission.buildButtonBindingsForMenuSave 配合。
-   * 返回 `undefined` 表示本次不提交绑定字段。
+   * 提交时并入 MenuInfoVO.menuButtons；与 useMenuPermission.buildMenuButtonsForMenuSave 配合。
+   * 返回 `undefined` 表示本次不提交 menuButtons 字段。
    */
-  getButtonBindingsForSave?: () => MenuMgmtButtonBindingItem[] | undefined
+  getMenuButtonsForSave?: () => MenuButtonInfoItem[] | undefined
 }
 
 export function useMenuController(options?: UseMenuControllerOptions) {
   const loading = ref(false)
 
-  /** 与 useMenuPermission 联动：详情从服务端刷新后递增，触发按钮区从库重载 */
+  /** 与 useMenuPermission 联动：详情从服务端刷新后递增，触发按钮区从 menuInfo 重载 */
   const permissionBootstrapNonce = ref(0)
 
   function bumpPermissionBootstrapNonce() {
@@ -82,7 +82,7 @@ export function useMenuController(options?: UseMenuControllerOptions) {
 
   const selectedId = ref<string | null>(null)
 
-  const detail = ref<MenuMgmtVO | null>(null)
+  const menuInfo = ref<MenuInfoVO | null>(null)
 
   const panelMode = ref<MenuPanelMode>('idle')
 
@@ -109,7 +109,7 @@ export function useMenuController(options?: UseMenuControllerOptions) {
     const roots = treeData.value
     if (!roots.length) {
       selectedId.value = null
-      detail.value = null
+      menuInfo.value = null
       panelMode.value = 'idle'
       formModel.value = emptyForm(0)
       return
@@ -126,44 +126,45 @@ export function useMenuController(options?: UseMenuControllerOptions) {
 
     loading.value = true
     try {
-      detail.value = await fetchMenuById(idStr)
-      syncFormFromDetail()
+      menuInfo.value = await fetchMenuById(idStr)
+      syncFormFromMenuInfo()
     } catch (e) {
       if (isSessionExpiredError(e)) {
-        detail.value = null
+        menuInfo.value = null
         return
       }
       ElMessage.error(e instanceof Error ? e.message : '加载详情失败')
-      detail.value = null
+      menuInfo.value = null
     } finally {
       loading.value = false
     }
   }
 
-  const syncFormFromDetail = () => {
-    if (detail.value) {
-      formModel.value = cloneFormFromDetail(detail.value)
+  const syncFormFromMenuInfo = () => {
+    const m = menuInfo.value?.menu
+    if (m) {
+      formModel.value = cloneFormFromMenu(m)
       bumpPermissionBootstrapNonce()
     }
   }
 
   const reloadDetailAndForm = async () => {
     if (selectedId.value == null) {
-      detail.value = null
+      menuInfo.value = null
       return
     }
 
     loading.value = true
     try {
-      detail.value = await fetchMenuById(selectedId.value)
-      syncFormFromDetail()
+      menuInfo.value = await fetchMenuById(selectedId.value)
+      syncFormFromMenuInfo()
     } catch (e) {
       if (isSessionExpiredError(e)) {
-        detail.value = null
+        menuInfo.value = null
         return
       }
       ElMessage.error(e instanceof Error ? e.message : '加载详情失败')
-      detail.value = null
+      menuInfo.value = null
     } finally {
       loading.value = false
     }
@@ -184,15 +185,15 @@ export function useMenuController(options?: UseMenuControllerOptions) {
 
     loading.value = true
     try {
-      detail.value = await fetchMenuById(idStr)
-      syncFormFromDetail()
+      menuInfo.value = await fetchMenuById(idStr)
+      syncFormFromMenuInfo()
     } catch (e) {
       if (isSessionExpiredError(e)) {
-        detail.value = null
+        menuInfo.value = null
         return
       }
       ElMessage.error(e instanceof Error ? e.message : '加载详情失败')
-      detail.value = null
+      menuInfo.value = null
     } finally {
       loading.value = false
     }
@@ -205,7 +206,7 @@ export function useMenuController(options?: UseMenuControllerOptions) {
    */
   const openCreateMenu = (parentIdOverride?: string | number | null) => {
     panelMode.value = 'create'
-    detail.value = null
+    menuInfo.value = null
 
     if (parentIdOverride !== undefined) {
       const p =
@@ -254,20 +255,23 @@ export function useMenuController(options?: UseMenuControllerOptions) {
 
     loading.value = true
     try {
-      // 组件路径改由前端按 route_path 解析，保存时不提交该字段
-      const payload = { ...m } as MenuMgmtVO & { componentPath?: unknown }
-      delete payload.componentPath
-      const bb = options?.getButtonBindingsForSave?.()
-      if (bb !== undefined) {
-        payload.buttonBindings = bb
+      const menuPayload = { ...m } as MenuMgmtVO & { componentPath?: unknown }
+      delete menuPayload.componentPath
+      delete menuPayload.children
+
+      const infoPayload: MenuInfoVO = { menu: menuPayload }
+      const mb = options?.getMenuButtonsForSave?.()
+      if (mb !== undefined) {
+        infoPayload.menuButtons = mb
       }
-      const saved = await saveMenu(payload)
+
+      await saveMenu(infoPayload)
 
       ElMessage.success('保存成功')
 
       await loadTree()
 
-      const newId = saved.id
+      const newId = m.id ?? menuPayload.id
 
       if (newId != null) {
         const nid = String(newId)
@@ -276,9 +280,9 @@ export function useMenuController(options?: UseMenuControllerOptions) {
 
         panelMode.value = 'edit'
 
-        detail.value = await fetchMenuById(nid)
+        menuInfo.value = await fetchMenuById(nid)
 
-        syncFormFromDetail()
+        syncFormFromMenuInfo()
       }
     } catch (e) {
       if (!isSessionExpiredError(e)) {
@@ -325,7 +329,7 @@ export function useMenuController(options?: UseMenuControllerOptions) {
 
   const showEditor = computed(
     () =>
-      panelMode.value === 'create' || (panelMode.value === 'edit' && detail.value != null),
+      panelMode.value === 'create' || (panelMode.value === 'edit' && menuInfo.value?.menu != null),
   )
 
   /** 表单区展示的上级菜单名称 */
@@ -352,7 +356,7 @@ export function useMenuController(options?: UseMenuControllerOptions) {
     loading,
     treeData,
     selectedId,
-    detail,
+    menuInfo,
     panelMode,
     formModel,
     showEditor,

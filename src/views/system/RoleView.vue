@@ -4,7 +4,7 @@
  */
 import { nextTick, ref, watch } from 'vue'
 import { Edit, Plus, UserFilled, Delete, Menu as MenuIcon } from '@element-plus/icons-vue'
-import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
+import { BTN_UI, CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
 import { useButtonPermission } from '../../composables/useButtonPermission'
 import type { FormInstance, TableInstance } from 'element-plus'
 import type { UserMgmtVO } from '../../models/userMgmt'
@@ -145,7 +145,7 @@ function userDisplayRealName(row: UserMgmtVO): string {
           </el-form-item>
           <el-form-item>
             <el-button v-if="hasButton(CMN_BUTTON.QUERY)" type="primary" @click="onSearch">{{ CMN_BUTTON_LABEL[CMN_BUTTON.QUERY] }}</el-button>
-            <el-button v-if="hasButton(CMN_BUTTON.RESET)" @click="onReset">{{ CMN_BUTTON_LABEL[CMN_BUTTON.RESET] }}</el-button>
+            <el-button v-if="hasButton(CMN_BUTTON.QUERY)" @click="onReset">{{ BTN_UI.RESET }}</el-button>
           </el-form-item>
           <el-form-item v-if="hasButton(CMN_BUTTON.ADD)" class="right-btn">
             <el-button type="success" :icon="Plus" @click="openCreate">{{ CMN_BUTTON_LABEL[CMN_BUTTON.ADD] }}</el-button>
@@ -164,10 +164,10 @@ function userDisplayRealName(row: UserMgmtVO): string {
               <el-tooltip v-if="hasButton(CMN_BUTTON.EDIT)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.EDIT]" placement="top">
                 <el-button type="primary" link :icon="Edit" @click="openEdit(row)" />
               </el-tooltip>
-              <el-tooltip v-if="hasButton(CMN_BUTTON.ASSIGN)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.ASSIGN]" placement="top">
+              <el-tooltip v-if="hasButton(CMN_BUTTON.EDIT)" :content="BTN_UI.ASSIGN" placement="top">
                 <el-button type="primary" link :icon="UserFilled" @click="openBindUsers(row)" />
               </el-tooltip>
-              <el-tooltip v-if="hasButton(CMN_BUTTON.BIND_MENU)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.BIND_MENU]" placement="top">
+              <el-tooltip v-if="hasButton(CMN_BUTTON.EDIT)" :content="BTN_UI.BIND_MENU" placement="top">
                 <el-button type="primary" link :icon="MenuIcon" @click="openBindMenuButtons(row)" />
               </el-tooltip>
               <el-tooltip v-if="hasButton(CMN_BUTTON.DELETE)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.DELETE]" placement="top">
@@ -219,8 +219,8 @@ function userDisplayRealName(row: UserMgmtVO): string {
       </el-form>
       <template #footer>
         <el-button v-if="hasButton(CMN_BUTTON.CANCEL)" @click="dialogVisible = false">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
-        <el-button v-if="hasButton(CMN_BUTTON.SAVE)" type="primary" :loading="submitLoading" @click="onSaveRole">
-          {{ CMN_BUTTON_LABEL[CMN_BUTTON.SAVE] }}
+        <el-button v-if="hasButton(CMN_BUTTON.EDIT)" type="primary" :loading="submitLoading" @click="onSaveRole">
+          {{ BTN_UI.SAVE }}
         </el-button>
       </template>
     </el-dialog>
@@ -248,7 +248,7 @@ function userDisplayRealName(row: UserMgmtVO): string {
             </el-form-item>
             <el-form-item>
               <el-button v-if="hasButton(CMN_BUTTON.QUERY)" type="primary" size="small" @click="onBindSearch">{{ CMN_BUTTON_LABEL[CMN_BUTTON.QUERY] }}</el-button>
-              <el-button v-if="hasButton(CMN_BUTTON.RESET)" size="small" @click="onBindReset">{{ CMN_BUTTON_LABEL[CMN_BUTTON.RESET] }}</el-button>
+              <el-button v-if="hasButton(CMN_BUTTON.QUERY)" size="small" @click="onBindReset">{{ BTN_UI.RESET }}</el-button>
             </el-form-item>
           </el-form>
           <div class="shuttle-table-wrap">
@@ -317,8 +317,8 @@ function userDisplayRealName(row: UserMgmtVO): string {
       </div>
       <template #footer>
         <el-button v-if="hasButton(CMN_BUTTON.CANCEL)" @click="bindDialogVisible = false">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
-        <el-button v-if="hasButton(CMN_BUTTON.SAVE)" type="primary" :loading="bindSubmitLoading" @click="submitBindUsers">
-          {{ CMN_BUTTON_LABEL[CMN_BUTTON.SAVE] }}
+        <el-button v-if="hasButton(CMN_BUTTON.EDIT)" type="primary" :loading="bindSubmitLoading" @click="submitBindUsers">
+          {{ BTN_UI.SAVE }}
         </el-button>
       </template>
     </el-dialog>
@@ -375,8 +375,8 @@ function userDisplayRealName(row: UserMgmtVO): string {
       </el-table>
       <template #footer>
         <el-button v-if="hasButton(CMN_BUTTON.CANCEL)" @click="bindMbDialogVisible = false">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
-        <el-button v-if="hasButton(CMN_BUTTON.SAVE)" type="primary" :loading="bindMbSubmitLoading" @click="submitBindMenuButtons">
-          {{ CMN_BUTTON_LABEL[CMN_BUTTON.SAVE] }}
+        <el-button v-if="hasButton(CMN_BUTTON.EDIT)" type="primary" :loading="bindMbSubmitLoading" @click="submitBindMenuButtons">
+          {{ BTN_UI.SAVE }}
         </el-button>
       </template>
     </el-dialog>

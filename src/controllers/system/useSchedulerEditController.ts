@@ -5,10 +5,11 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { fetchJobTaskById, pauseJobTask, resumeJobTask, saveJobTask } from '../../api/jobTask'
-import { fetchRegistryServices } from '../../api/permission'
-import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
+import { fetchDiscoveryServices } from '../../api/discovery'
+import { BTN_UI, CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
 import { useButtonPermission } from '../../composables/useButtonPermission'
-import type { ApiMetaDTO, RegistryServiceItem } from '../../models/permission'
+import type { ApiMetaDTO } from '../../models/permission'
+import type { ServiceVO } from '../../models/discovery'
 import type { JobTaskFormModel, JobTaskSaveDTO } from '../../models/jobTask'
 import { formTypeToJobType, jobTypeToFormType } from '../../models/jobTask'
 import { useAppStore } from '../../stores/app'
@@ -38,7 +39,7 @@ export function useSchedulerEditController() {
   const submitLoading = ref(false)
   const toggleLoading = ref(false)
   const formRef = ref<FormInstance>()
-  const registryServices = ref<RegistryServiceItem[]>([])
+  const discoveryServices = ref<ServiceVO[]>([])
   const apiPickerVisible = ref(false)
   const shuttleModel = ref<ApiMetaDTO[]>([])
 
@@ -268,11 +269,11 @@ export function useSchedulerEditController() {
     void router.push(SCHEDULER_LIST_PATH)
   }
 
-  async function loadRegistry() {
+  async function loadDiscoveryServices() {
     try {
-      registryServices.value = await fetchRegistryServices()
+      discoveryServices.value = await fetchDiscoveryServices()
     } catch {
-      registryServices.value = []
+      discoveryServices.value = []
     }
   }
 
@@ -508,7 +509,7 @@ export function useSchedulerEditController() {
   )
 
   onMounted(async () => {
-    await loadRegistry()
+    await loadDiscoveryServices()
     if (isEdit.value) {
       await loadEdit()
     } else {
@@ -518,6 +519,7 @@ export function useSchedulerEditController() {
   })
 
   return {
+    BTN_UI,
     CMN_BUTTON,
     CMN_BUTTON_LABEL,
     hasButton,
@@ -527,7 +529,7 @@ export function useSchedulerEditController() {
     submitLoading,
     toggleLoading,
     formRef,
-    registryServices,
+    discoveryServices,
     apiPickerVisible,
     shuttleModel,
     isEdit,

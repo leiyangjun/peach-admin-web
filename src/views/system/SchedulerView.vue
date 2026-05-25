@@ -11,7 +11,7 @@ import {
   VideoPause,
   VideoPlay,
 } from '@element-plus/icons-vue'
-import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
+import { BTN_UI, CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
 import { useButtonPermission } from '../../composables/useButtonPermission'
 import { isInternalJobType } from '../../models/jobTask'
 import { isJobTaskPaused, useSchedulerController } from '../../controllers/system/useSchedulerController'
@@ -64,7 +64,7 @@ const { hasButton } = useButtonPermission()
           </el-form-item>
           <el-form-item>
             <el-button v-if="hasButton(CMN_BUTTON.QUERY)" type="primary" @click="onSearch">{{ CMN_BUTTON_LABEL[CMN_BUTTON.QUERY] }}</el-button>
-            <el-button v-if="hasButton(CMN_BUTTON.RESET)" @click="onReset">{{ CMN_BUTTON_LABEL[CMN_BUTTON.RESET] }}</el-button>
+            <el-button v-if="hasButton(CMN_BUTTON.QUERY)" @click="onReset">{{ BTN_UI.RESET }}</el-button>
           </el-form-item>
           <el-form-item v-if="hasButton(CMN_BUTTON.ADD)" class="right-btn">
             <el-button type="success" :icon="Plus" @click="goCreate">{{ CMN_BUTTON_LABEL[CMN_BUTTON.ADD] }}</el-button>
@@ -106,16 +106,16 @@ const { hasButton } = useButtonPermission()
               <el-tooltip v-if="hasButton(CMN_BUTTON.EDIT)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.EDIT]" placement="top">
                 <el-button type="primary" link :icon="Edit" @click="goEdit(row)" />
               </el-tooltip>
-              <el-tooltip v-if="hasButton(CMN_BUTTON.LOG)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.LOG]" placement="top">
+              <el-tooltip v-if="hasButton(CMN_BUTTON.QUERY)" :content="BTN_UI.LOG" placement="top">
                 <el-button type="primary" link :icon="Document" @click="openLogs(row)" />
               </el-tooltip>
-              <el-tooltip v-if="!isJobTaskPaused(row) && hasButton(CMN_BUTTON.PAUSE)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.PAUSE]" placement="top">
+              <el-tooltip v-if="!isJobTaskPaused(row) && hasButton(CMN_BUTTON.EDIT)" :content="BTN_UI.PAUSE" placement="top">
                 <el-button type="warning" link :icon="VideoPause" @click="onPause(row)" />
               </el-tooltip>
-              <el-tooltip v-else-if="isJobTaskPaused(row) && hasButton(CMN_BUTTON.RESUME)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.RESUME]" placement="top">
+              <el-tooltip v-else-if="isJobTaskPaused(row) && hasButton(CMN_BUTTON.EDIT)" :content="BTN_UI.RESUME" placement="top">
                 <el-button type="success" link :icon="VideoPlay" @click="onResume(row)" />
               </el-tooltip>
-              <el-tooltip v-if="hasButton(CMN_BUTTON.TRIGGER)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.TRIGGER]" placement="top">
+              <el-tooltip v-if="hasButton(CMN_BUTTON.EDIT)" :content="BTN_UI.TRIGGER" placement="top">
                 <el-button type="primary" link :icon="Promotion" @click="onTrigger(row)" />
               </el-tooltip>
               <el-tooltip v-if="hasButton(CMN_BUTTON.DELETE)" :content="CMN_BUTTON_LABEL[CMN_BUTTON.DELETE]" placement="top">
@@ -161,7 +161,7 @@ const { hasButton } = useButtonPermission()
         <el-table-column prop="jobApi" label="API" width="160" show-overflow-tooltip />
       </el-table>
       <div class="drawer-footer">
-        <el-button v-if="hasButton(CMN_BUTTON.REFRESH)" type="primary" @click="refreshLogs">{{ CMN_BUTTON_LABEL[CMN_BUTTON.REFRESH] }}</el-button>
+        <el-button v-if="hasButton(CMN_BUTTON.QUERY)" type="primary" @click="refreshLogs">{{ BTN_UI.REFRESH }}</el-button>
         <el-button v-if="hasButton(CMN_BUTTON.CANCEL)" @click="logDrawerVisible = false">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
       </div>
     </el-drawer>

@@ -1,13 +1,10 @@
 import axios from 'axios'
-import { ADMIN_API_PATH_PREFIX } from '../config/adminApiPrefix'
+import { buildGatewayServiceBaseUrl, PEACH_AUTH_SERVICE } from '../config/gatewayOrigin'
 import { setupAuthInterceptors } from './setupAuthInterceptors'
 
-/**
- * 开发环境：Vite 将 `/api` + 管理前缀代理至网关（8090），并重写为 `/peach-auth-service` + 同前缀。
- * 生产环境：请在 Nginx 等对 `/api` + 同前缀转发至同一网关入口。
- */
+/** peach-auth-service：经网关访问，baseURL = 网关 origin + `/peach-auth-service` + 管理 API 前缀。 */
 const http = axios.create({
-  baseURL: `/api${ADMIN_API_PATH_PREFIX}`,
+  baseURL: buildGatewayServiceBaseUrl(PEACH_AUTH_SERVICE),
   timeout: 10000,
 })
 

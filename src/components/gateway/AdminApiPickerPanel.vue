@@ -4,12 +4,13 @@
  */
 import { toRef } from 'vue'
 import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
-import type { ApiMetaDTO, RegistryServiceItem } from '../../models/permission'
+import type { ApiMetaDTO } from '../../models/permission'
+import type { ServiceVO } from '../../models/discovery'
 import { useAdminApiPicker } from '../../composables/useAdminApiPicker'
 
 const props = withDefaults(
   defineProps<{
-    registryServices: RegistryServiceItem[]
+    discoveryServices: ServiceVO[]
     boundApis: ApiMetaDTO[]
     autoLoad?: boolean
     serviceChangeDebounceMs?: number
@@ -65,9 +66,9 @@ defineExpose({
         class="admin-api-picker-service"
       >
         <el-option
-          v-for="s in registryServices"
+          v-for="s in discoveryServices"
           :key="s.serviceId"
-          :label="s.displayName"
+          :label="s.serviceName"
           :value="s.serviceId"
         />
       </el-select>

@@ -3,14 +3,15 @@
  * 绑定 API 资源：服务下拉 + 方法/关键字拉取全量 Admin API，左右穿梭，前端分页。
  */
 import { computed } from 'vue'
-import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../constants/cmnButton'
-import type { ApiMetaDTO, RegistryServiceItem } from '../models/permission'
+import { BTN_UI, CMN_BUTTON, CMN_BUTTON_LABEL } from '../constants/cmnButton'
+import type { ApiMetaDTO } from '../models/permission'
+import type { ServiceVO } from '../models/discovery'
 import { useApiResourceShuttle } from '../composables/useApiResourceShuttle'
 
 const props = withDefaults(
   defineProps<{
     visible: boolean
-    registryServices: RegistryServiceItem[]
+    discoveryServices: ServiceVO[]
     modelValue?: ApiMetaDTO[]
     buttonLabel?: string
     titleSuffix?: string
@@ -45,9 +46,28 @@ const dialogTitle = computed(() => {
   return tag ? `绑定（${tag}）API` : '绑定API资源'
 })
 
-const shuttle = useApiResourceShuttle({
+const {
+  serviceId,
+  method,
+  keyword,
+  listLoading,
+  rightList,
+  leftPage,
+  leftPageSize,
+  forceMethodLock,
+  methodSelectOptions,
+  leftTotal,
+  leftPaged,
+  leftApiRowClassName,
+  apiRowKeyFn,
+  onSearch,
+  addLeft,
+  removeRight,
+  onConfirm,
+  onCancel,
+} = useApiResourceShuttle({
   visible: () => props.visible,
-  registryServices: () => props.registryServices,
+  discoveryServices: () => props.discoveryServices,
   modelValue: () => props.modelValue ?? [],
   initialServiceId: () => props.initialServiceId ?? '',
   forceHttpMethod: () => props.forceHttpMethod ?? '',
@@ -70,53 +90,53 @@ const shuttle = useApiResourceShuttle({
     append-to-body
     destroy-on-close
   >
-    <div v-if="!registryServices.length" class="api-shuttle-empty">
+    <div v-if="!discoveryServices.length" class="api-shuttle-empty">
       <el-alert type="warning" show-icon :closable="false" title="暂无可选微服务，无法拉取 Admin API 目录。" />
     </div>
     <template v-else>
       <div class="api-shuttle-toolbar">
-        <el-select v-model="shuttle.serviceId" filterable placeholder="微服务" class="api-svc">
+        <el-select v-model="serviceId" filterable placeholder="微服务" class="api-svc">
           <el-option
-            v-for="s in registryServices"
+            v-for="s in discoveryServices"
             :key="s.serviceId"
-            :label="s.displayName"
+            :label="s.serviceName"
             :value="s.serviceId"
           />
         </el-select>
         <el-select
-          v-if="!shuttle.forceMethodLock"
-          v-model="shuttle.method"
+          v-if="!forceMethodLock"
+          v-model="method"
           clearable
           placeholder="HTTP 方法"
           class="api-method"
         >
           <el-option label="全部" value="" />
-          <el-option v-for="m in shuttle.methodSelectOptions" :key="m" :label="m" :value="m" />
+          <el-option v-for="m in methodSelectOptions" :key="m" :label="m" :value="m" />
         </el-select>
         <el-input
-          v-model="shuttle.keyword"
+          v-model="keyword"
           clearable
           placeholder="路径/摘要关键字"
           class="api-kw"
-          @keyup.enter="shuttle.onSearch"
+          @keyup.enter="onSearch"
         />
-        <el-button type="primary" :loading="shuttle.listLoading" @click="shuttle.onSearch">{{ CMN_BUTTON_LABEL[CMN_BUTTON.QUERY] }}</el-button>
+        <el-button type="primary" :loading="listLoading" @click="onSearch">{{ CMN_BUTTON_LABEL[CMN_BUTTON.QUERY] }}</el-button>
       </div>
       <div class="shuttle-body">
         <div class="shuttle-col">
           <div class="shuttle-col-title">可选 API</div>
           <div class="shuttle-table-wrap">
             <el-table
-              v-loading="shuttle.listLoading"
-              :data="shuttle.leftPaged"
-              :row-class-name="shuttle.leftApiRowClassName"
+              v-loading="listLoading"
+              :data="leftPaged"
+              :row-class-name="leftApiRowClassName"
               size="small"
               border
               stripe
               height="220"
               class="shuttle-table"
-              :row-key="shuttle.apiRowKeyFn"
-              @row-click="(row: ApiMetaDTO) => shuttle.addLeft(row)"
+              :row-key="apiRowKeyFn"
+              @row-click="(row: ApiMetaDTO) => addLeft(row)"
             >
               <template #empty>
                 <el-empty description="暂无数据，请切换服务或点「搜索」拉取列表" :image-size="48" />
@@ -127,10 +147,10 @@ const shuttle = useApiResourceShuttle({
             </el-table>
           </div>
           <el-pagination
-            v-model:current-page="shuttle.leftPage"
+            v-model:current-page="leftPage"
             layout="prev, pager, next, total"
-            :total="shuttle.leftTotal"
-            :page-size="shuttle.leftPageSize"
+            :total="leftTotal"
+            :page-size="leftPageSize"
             small
             class="shuttle-pager"
             background
@@ -140,14 +160,14 @@ const shuttle = useApiResourceShuttle({
           <div class="shuttle-col-title">已选 API</div>
           <div class="shuttle-table-wrap">
             <el-table
-              :data="shuttle.rightList"
+              :data="rightList"
               size="small"
               border
               stripe
               height="220"
               class="shuttle-table"
-              :row-key="shuttle.apiRowKeyFn"
-              @row-click="(row: ApiMetaDTO) => shuttle.removeRight(row)"
+              :row-key="apiRowKeyFn"
+              @row-click="(row: ApiMetaDTO) => removeRight(row)"
             >
               <template #empty>
                 <el-empty description="从左侧添加" :image-size="48" />
@@ -161,9 +181,9 @@ const shuttle = useApiResourceShuttle({
       </div>
     </template>
     <template #footer>
-      <el-button @click="shuttle.onCancel">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
-      <el-button type="primary" :disabled="!registryServices.length" @click="shuttle.onConfirm">
-        {{ CMN_BUTTON_LABEL[CMN_BUTTON.SAVE] }}
+      <el-button @click="onCancel">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
+      <el-button type="primary" :disabled="!discoveryServices.length" @click="onConfirm">
+        {{ BTN_UI.SAVE }}
       </el-button>
     </template>
   </el-dialog>

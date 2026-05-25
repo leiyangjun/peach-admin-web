@@ -1,18 +1,31 @@
 /**
- * 当前登录用户菜单与按钮权限（对接 GET /permission/current-user）。
- */
-import type { MenuMgmtVO } from './menuMgmt'
 
-export interface CurrentUserMenuButtonItem {
-  menuButtonId?: string | number
-  menuId?: string | number
-  menuCode?: string
-  routePath?: string
-  buttonCode?: string
-  buttonName?: string
-}
+ * @deprecated 旧版聚合权限（GET /permission/current-user）；运行时已改用
+
+ * {@link ../api/role.ts fetchCurrentUserMenuTree} 与 {@link ../api/role.ts fetchCurrentUserMenuButtons}。
+
+ */
+
+import type { UserMenuVO } from './menuMgmt'
+
+import type { UserMenuButtonCode } from './userMenuButton'
+
+
+
+/** @deprecated 请使用 {@link UserMenuButtonCode}（按钮 CODE 字符串） */
+
+export type CurrentUserMenuButtonItem = UserMenuButtonCode
+
+
+
+/** @deprecated 请使用分接口拉取菜单树与按钮 */
 
 export interface CurrentUserPermissionVO {
-  menuTree: MenuMgmtVO[]
+
+  menuTree: UserMenuVO[]
+
   menuButtons: CurrentUserMenuButtonItem[]
+
 }
+
+

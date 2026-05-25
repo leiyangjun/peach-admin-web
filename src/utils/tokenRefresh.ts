@@ -3,7 +3,7 @@
  * 作者：leiyangjun
  */
 import axios from 'axios'
-import { ADMIN_API_PATH_PREFIX } from '../config/adminApiPrefix'
+import { buildGatewayServiceBaseUrl, PEACH_AUTH_SERVICE } from '../config/gatewayOrigin'
 import type { ApiEnvelope, TokenDTO } from '../models/auth'
 import { isPeachSuccess } from './apiResult'
 import { decodeJwtPayload } from './jwt'
@@ -68,7 +68,7 @@ async function doRefresh(): Promise<TokenDTO> {
     throw new Error('无刷新令牌')
   }
   const { data: body } = await axios.post<ApiEnvelope<TokenDTO>>(
-    `/api${ADMIN_API_PATH_PREFIX}/auth/refresh`,
+    `${buildGatewayServiceBaseUrl(PEACH_AUTH_SERVICE)}/auth/refresh`,
     null,
     {
       timeout: 10000,

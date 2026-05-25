@@ -4,7 +4,7 @@
  */
 import { computed, ref } from 'vue'
 import { Delete, Edit, Plus } from '@element-plus/icons-vue'
-import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
+import { BTN_UI, CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
 import { useButtonPermission } from '../../composables/useButtonPermission'
 import type { ElSelect, FormInstance, TableColumnCtx } from 'element-plus'
 import { useDictController } from '../../controllers/system/useDictController'
@@ -211,7 +211,7 @@ const onSaveDict = async () => {
           </el-form-item>
           <el-form-item>
             <el-button v-if="hasButton(CMN_BUTTON.QUERY)" type="primary" @click="onSearch">{{ CMN_BUTTON_LABEL[CMN_BUTTON.QUERY] }}</el-button>
-            <el-button v-if="hasButton(CMN_BUTTON.RESET)" @click="onReset">{{ CMN_BUTTON_LABEL[CMN_BUTTON.RESET] }}</el-button>
+            <el-button v-if="hasButton(CMN_BUTTON.QUERY)" @click="onReset">{{ BTN_UI.RESET }}</el-button>
           </el-form-item>
           <el-form-item v-if="hasButton(CMN_BUTTON.ADD)" class="right-btn">
             <el-button type="success" :icon="Plus" @click="openCreate">{{ CMN_BUTTON_LABEL[CMN_BUTTON.ADD] }}</el-button>
@@ -264,7 +264,7 @@ const onSaveDict = async () => {
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
             <el-switch
-              v-if="hasButton(CMN_BUTTON.ENABLE) || hasButton(CMN_BUTTON.DISABLE)"
+              v-if="hasButton(CMN_BUTTON.EDIT)"
               :model-value="row.status === 1"
               @change="(v: boolean) => onToggleStatus(row, v)"
             />
@@ -406,8 +406,8 @@ const onSaveDict = async () => {
       </div>
       <template #footer>
         <el-button v-if="hasButton(CMN_BUTTON.CANCEL)" @click="drawerVisible = false">{{ CMN_BUTTON_LABEL[CMN_BUTTON.CANCEL] }}</el-button>
-        <el-button v-if="hasButton(CMN_BUTTON.SAVE)" type="primary" :loading="submitLoading" @click="onSaveDict">
-          {{ CMN_BUTTON_LABEL[CMN_BUTTON.SAVE] }}
+        <el-button v-if="hasButton(CMN_BUTTON.EDIT)" type="primary" :loading="submitLoading" @click="onSaveDict">
+          {{ BTN_UI.SAVE }}
         </el-button>
       </template>
     </el-drawer>

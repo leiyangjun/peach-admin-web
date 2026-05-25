@@ -11,6 +11,10 @@
 - `router/`：路由与导航守卫
 - `api/`：后端请求封装
 
+### HTTP 经网关访问（强制）
+
+所有 axios 实例 baseURL 指向 **peach-gateway**（`VITE_GATEWAY_ORIGIN`，开发默认 `http://127.0.0.1:8090`），路径形如 `/peach-{service}/admin/...`；禁止 `/api*` 相对路径误打 Vite 或微服务端口。详见 `src/api/README.md`。
+
 ### 当前示例
 
 - 登录页：
