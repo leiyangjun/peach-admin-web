@@ -1,5 +1,5 @@
 /**
- * 权限配置相关前端模型（对接 peach-common-service /permission）。
+ * 菜单按钮绑定、API 元数据等前端模型（与 peach-common-service MenuInfoVO / ApiMeta 对齐）。
  */
 
 /** 全局按钮字典 cmn_button */

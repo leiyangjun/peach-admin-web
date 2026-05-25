@@ -7,8 +7,8 @@ import httpCommon from './httpCommon'
 import { normalizeMenuTreeRoleRoots } from '../utils/roleMenuBindRules'
 import { isPeachSuccess } from '../utils/apiResult'
 import type { ApiEnvelope } from '../models/auth'
-import type { MenuTreeUserVO, UserMenuVO } from '../models/menuMgmt'
-import type { MenuTreeRoleVO, RoleMgmtVO, RolePageQuery, RoleUserVO } from '../models/roleMgmt'
+import type { MenuTreeUserVO } from '../models/menuMgmt'
+import type { MenuButtonRoleVO, MenuTreeRoleVO, RoleMgmtVO, RolePageQuery, RoleUserVO } from '../models/roleMgmt'
 import type { UserMgmtVO } from '../models/userMgmt'
 
 const BASE = '/role'
@@ -23,16 +23,6 @@ export async function fetchUserMenus(): Promise<MenuTreeUserVO[]> {
     throw new Error(body.msg || '加载当前用户菜单权限失败')
   }
   return body.data ?? []
-}
-
-/** @deprecated 请使用 {@link fetchUserMenus} */
-export async function fetchCurrentUserMenuTree(): Promise<UserMenuVO[]> {
-  return fetchUserMenus()
-}
-
-/** @deprecated 按钮已随 {@link fetchUserMenus} 一并返回，勿再按 menuId 二次请求 */
-export async function fetchCurrentUserMenuButtons(_menuId: string | number): Promise<string[]> {
-  return []
 }
 
 export interface PageInfoRole {
@@ -127,15 +117,15 @@ export async function fetchRoleMenus(roleId: string | number): Promise<MenuTreeR
 
 /**
  * 保存角色绑定菜单（POST /role/menus/{roleId}）。
- * 请求体与 GET /role/menus/{roleId} 返回结构一致：根节点数组，各节点 buttonRoleVOs[].permission 表示勾选态。
+ * 请求体为扁平 MenuButtonRoleVO[]：仅含 permission=true 的勾选行；
+ * 空数组表示清空该角色全部菜单按钮权限（后端先删后插）。
  */
 export async function saveRoleMenus(
   roleId: string | number,
-  payload: MenuTreeRoleVO[],
+  payload: MenuButtonRoleVO[],
 ): Promise<void> {
   const id = encodeURIComponent(String(roleId))
-  const trees = normalizeMenuTreeRoleRoots(payload)
-  const { data: body } = await httpCommon.post<ApiEnvelope<unknown>>(`${BASE}/menus/${id}`, trees, {
+  const { data: body } = await httpCommon.post<ApiEnvelope<unknown>>(`${BASE}/menus/${id}`, payload, {
     headers: { 'Content-Type': 'application/json' },
   })
   if (!isPeachSuccess(body.code)) {

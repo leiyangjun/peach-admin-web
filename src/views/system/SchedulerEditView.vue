@@ -41,7 +41,7 @@ const {
 } = useSchedulerEditController()
 
 function bindSchedulerForm(el: unknown) {
-  schedulerFormRef.value = (el ?? null) as FormInstance | null
+  schedulerFormRef.value = el ? (el as FormInstance) : undefined
 }
 </script>
 

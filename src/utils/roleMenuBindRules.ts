@@ -5,7 +5,6 @@
  * - 后代菜单/目录存在任意勾选时，向上递归自动勾选各祖先的「查询」；无后代勾选时移除祖先上仅由规则带入的查询。
  */
 
-import type { MenuMgmtVO } from '../models/menuMgmt'
 import type { MenuButtonPickerRow } from '../models/permission'
 import type { MenuButtonRoleVO, MenuTreeRoleVO } from '../models/roleMgmt'
 
@@ -39,71 +38,6 @@ export interface MenuBindTreeRow {
   buttons: MenuButtonPickerRow[]
   /** 无子节点时省略，避免树表出现无意义展开图标 */
   children?: MenuBindTreeRow[]
-}
-
-/** 按菜单 id 聚合可选按钮行 */
-export function groupPickerRowsByMenuId(rows: MenuButtonPickerRow[]): Map<string, MenuButtonPickerRow[]> {
-  const map = new Map<string, MenuButtonPickerRow[]>()
-  for (const r of rows) {
-    const mid = r.menuId != null ? String(r.menuId) : ''
-    if (!mid) {
-      continue
-    }
-    const arr = map.get(mid) ?? []
-    arr.push(r)
-    map.set(mid, arr)
-  }
-  for (const [, arr] of map) {
-    arr.sort((a, b) => {
-      const an = (a.buttonName ?? a.buttonCode ?? '').localeCompare(b.buttonName ?? b.buttonCode ?? '', 'zh-CN')
-      return an
-    })
-  }
-  return map
-}
-
-function filterTreeNodes(
-  nodes: MenuMgmtVO[] | null | undefined,
-  byMenuId: Map<string, MenuButtonPickerRow[]>,
-): MenuBindTreeRow[] {
-  if (!nodes?.length) {
-    return []
-  }
-  const out: MenuBindTreeRow[] = []
-  for (const m of nodes) {
-    if (m.valid != null && Number(m.valid) !== 1) {
-      continue
-    }
-    const mt = (m.menuType ?? '').trim()
-    if (mt === 'BUTTON') {
-      continue
-    }
-    if (mt !== 'CATALOG' && mt !== 'MENU') {
-      continue
-    }
-    const idStr = m.id != null ? String(m.id) : ''
-    if (!idStr) {
-      continue
-    }
-    const children = filterTreeNodes(m.children ?? null, byMenuId)
-    const row: MenuBindTreeRow = {
-      id: idStr,
-      menuName: m.menuName ?? '',
-      menuType: mt,
-      buttons: byMenuId.get(idStr) ?? [],
-    }
-    if (children.length) {
-      row.children = children
-    }
-    out.push(row)
-  }
-  return out
-}
-
-/** 由有效菜单树 + 角色选择器行构造树表数据 */
-export function buildRoleMenuBindTree(menuRoots: MenuMgmtVO[], pickerRows: MenuButtonPickerRow[]): MenuBindTreeRow[] {
-  const byMenuId = groupPickerRowsByMenuId(pickerRows)
-  return filterTreeNodes(menuRoots, byMenuId)
 }
 
 /** MenuButtonRoleVO → 树表按钮行（menuButtonId 为 roleMenuBindSelectionKey，供勾选态使用） */
@@ -171,31 +105,38 @@ export function normalizeMenuTreeRoleRoots(
 }
 
 /**
- * 由弹窗勾选态组装 POST /role/menus/{roleId} 请求体（与 GET 返回结构一致）。
- * roleId 写入各 buttonRoleVOs[].roleId；permission 由 selectedButtonIds 决定。
+ * 由弹窗勾选态组装 POST /role/menus/{roleId} 扁平请求体。
+ * 与后端 saveRoleMenuButton 对齐：仅提交 permission=true 的按钮行；未勾选不提交。
+ * 空勾选时提交 []，后端会清空该角色全部菜单按钮权限。
  */
 export function buildRoleMenuTreeSavePayload(
   roots: MenuTreeRoleVO[],
   selectedButtonIds: Set<string>,
   roleId: string | number,
-): MenuTreeRoleVO[] {
-  function mapNode(n: MenuTreeRoleVO): MenuTreeRoleVO {
-    const buttonRoleVOs = (n.buttonRoleVOs ?? []).map((br) => {
-      const key = roleMenuBindSelectionKey(br.menuId, br.buttonId)
-      return {
-        ...br,
-        roleId,
-        permission: key != null && selectedButtonIds.has(key),
+): MenuButtonRoleVO[] {
+  const flat: MenuButtonRoleVO[] = []
+  function walk(nodes: MenuTreeRoleVO[]) {
+    for (const n of nodes) {
+      for (const br of n.buttonRoleVOs ?? []) {
+        const key = roleMenuBindSelectionKey(br.menuId, br.buttonId)
+        if (key == null || !selectedButtonIds.has(key)) {
+          continue
+        }
+        flat.push({
+          roleId,
+          menuId: br.menuId,
+          buttonId: br.buttonId,
+          buttonCode: br.buttonCode,
+          permission: true,
+        })
       }
-    })
-    const children = n.children?.map(mapNode)
-    return {
-      ...n,
-      buttonRoleVOs,
-      ...(children?.length ? { children } : {}),
+      if (n.children?.length) {
+        walk(n.children)
+      }
     }
   }
-  return normalizeMenuTreeRoleRoots(roots).map(mapNode)
+  walk(normalizeMenuTreeRoleRoots(roots))
+  return flat
 }
 
 /** 从接口树中收集 permission=true 的菜单按钮实例 id */

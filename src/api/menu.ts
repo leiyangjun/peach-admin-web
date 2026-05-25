@@ -19,15 +19,6 @@ export async function fetchMenuTreeAll(): Promise<MenuMgmtVO[]> {
   return body.data
 }
 
-/** 仅有效菜单树（角色分配菜单等场景；若后端未提供则与 tree/all 行为以服务端为准） */
-export async function fetchMenuTreeValid(): Promise<MenuMgmtVO[]> {
-  const { data: body } = await httpCommon.get<ApiEnvelope<MenuMgmtVO[]>>(`${BASE}/tree`)
-  if (!isPeachSuccess(body.code) || body.data == null) {
-    throw new Error(body.msg || '加载菜单树失败')
-  }
-  return body.data
-}
-
 /** 菜单详情（含 menuButtons + buttonApis） */
 export async function fetchMenuById(id: number | string): Promise<MenuInfoVO> {
   const { data: body } = await httpCommon.get<ApiEnvelope<MenuInfoVO>>(`${BASE}/${id}`)
