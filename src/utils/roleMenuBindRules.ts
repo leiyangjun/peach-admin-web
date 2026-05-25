@@ -1,14 +1,35 @@
 /**
  * 角色「绑定菜单」勾选规则：与同模块菜单配置（useMenuPermission）一致。
- * - 同一菜单下勾选任意非「查看」按钮时，自动勾选该菜单的「查看」实例。
- * - 勾选任意后代菜单下的任意按钮时，祖先目录（CATALOG）仅自动具备「查看」权限（目录无业务按钮行）。
+ * - 勾选键为 menuId + 字典按钮 id（与 GET /role/menus 的 buttonRoleVOs 对齐），禁止仅用 buttonCode/字典 id 全局联动。
+ * - 同一菜单下勾选任意按钮时，自动勾选该菜单的「查询（BTN_QUERY）」；用户可单独取消查询（无其它按钮勾选时）。
+ * - 后代菜单/目录存在任意勾选时，向上递归自动勾选各祖先的「查询」；无后代勾选时移除祖先上仅由规则带入的查询。
  */
 
 import type { MenuMgmtVO } from '../models/menuMgmt'
 import type { MenuButtonPickerRow } from '../models/permission'
+import type { MenuButtonRoleVO, MenuTreeRoleVO } from '../models/roleMgmt'
 
 /** 与菜单配置、字典一致：查看按钮编码 */
 export const ROLE_BIND_VIEW_BUTTON_CODE = 'BTN_QUERY'
+
+/**
+ * 角色绑定菜单弹窗内唯一勾选键（与后端 RoleServiceImpl 中 menuId:buttonId 一致）。
+ * buttonId 为 cmn_button.id（字典），非 cmn_menu_button.id。
+ */
+export function roleMenuBindSelectionKey(
+  menuId: string | number | null | undefined,
+  buttonId: string | number | null | undefined,
+): string | null {
+  if (menuId == null || buttonId == null) {
+    return null
+  }
+  const mid = String(menuId).trim()
+  const bid = String(buttonId).trim()
+  if (!mid || !bid) {
+    return null
+  }
+  return `${mid}:${bid}`
+}
 
 export interface MenuBindTreeRow {
   id: string
@@ -85,14 +106,118 @@ export function buildRoleMenuBindTree(menuRoots: MenuMgmtVO[], pickerRows: MenuB
   return filterTreeNodes(menuRoots, byMenuId)
 }
 
-function collectDescendantMenuIds(node: MenuBindTreeRow): string[] {
+/** MenuButtonRoleVO → 树表按钮行（menuButtonId 为 roleMenuBindSelectionKey，供勾选态使用） */
+export function roleButtonVoToPickerRow(br: MenuButtonRoleVO): MenuButtonPickerRow {
+  const menuId = br.menuId != null ? String(br.menuId) : undefined
+  const dictButtonId = br.buttonId != null ? String(br.buttonId) : undefined
+  return {
+    menuButtonId: roleMenuBindSelectionKey(menuId, dictButtonId) ?? undefined,
+    dictButtonId,
+    menuId,
+    buttonCode: br.buttonCode,
+    buttonName: br.buttonName,
+  }
+}
+
+function filterRoleMenuTreeNodes(nodes: MenuTreeRoleVO[] | null | undefined): MenuBindTreeRow[] {
+  if (!nodes?.length) {
+    return []
+  }
+  const out: MenuBindTreeRow[] = []
+  for (const m of nodes) {
+    if (m.valid != null && Number(m.valid) !== 1) {
+      continue
+    }
+    const mt = (m.menuType ?? '').trim()
+    if (mt === 'BUTTON') {
+      continue
+    }
+    if (mt !== 'CATALOG' && mt !== 'MENU') {
+      continue
+    }
+    const idStr = m.id != null ? String(m.id) : ''
+    if (!idStr) {
+      continue
+    }
+    const buttons = (m.buttonRoleVOs ?? []).map(roleButtonVoToPickerRow)
+    const children = filterRoleMenuTreeNodes(m.children ?? null)
+    const row: MenuBindTreeRow = {
+      id: idStr,
+      menuName: m.menuName ?? '',
+      menuType: mt,
+      buttons,
+    }
+    if (children.length) {
+      row.children = children
+    }
+    out.push(row)
+  }
+  return out
+}
+
+/** 由 GET /role/menus/{roleId} 返回的树构造绑定菜单树表 */
+export function buildRoleMenuBindTreeFromRoleMenus(roots: MenuTreeRoleVO[]): MenuBindTreeRow[] {
+  return filterRoleMenuTreeNodes(normalizeMenuTreeRoleRoots(roots))
+}
+
+/** 规范为根节点数组，与后端 List<MenuTreeRoleVO> / GET data 一致 */
+export function normalizeMenuTreeRoleRoots(
+  roots: MenuTreeRoleVO[] | MenuTreeRoleVO | null | undefined,
+): MenuTreeRoleVO[] {
+  if (roots == null) {
+    return []
+  }
+  return Array.isArray(roots) ? roots : [roots]
+}
+
+/**
+ * 由弹窗勾选态组装 POST /role/menus/{roleId} 请求体（与 GET 返回结构一致）。
+ * roleId 写入各 buttonRoleVOs[].roleId；permission 由 selectedButtonIds 决定。
+ */
+export function buildRoleMenuTreeSavePayload(
+  roots: MenuTreeRoleVO[],
+  selectedButtonIds: Set<string>,
+  roleId: string | number,
+): MenuTreeRoleVO[] {
+  function mapNode(n: MenuTreeRoleVO): MenuTreeRoleVO {
+    const buttonRoleVOs = (n.buttonRoleVOs ?? []).map((br) => {
+      const key = roleMenuBindSelectionKey(br.menuId, br.buttonId)
+      return {
+        ...br,
+        roleId,
+        permission: key != null && selectedButtonIds.has(key),
+      }
+    })
+    const children = n.children?.map(mapNode)
+    return {
+      ...n,
+      buttonRoleVOs,
+      ...(children?.length ? { children } : {}),
+    }
+  }
+  return normalizeMenuTreeRoleRoots(roots).map(mapNode)
+}
+
+/** 从接口树中收集 permission=true 的菜单按钮实例 id */
+export function collectGrantedMenuButtonIdsFromRoleMenuTree(roots: MenuTreeRoleVO[]): string[] {
   const ids: string[] = []
-  if (node.menuType === 'MENU') {
-    ids.push(node.id)
+  function walk(nodes: MenuTreeRoleVO[]) {
+    for (const n of nodes) {
+      for (const br of n.buttonRoleVOs ?? []) {
+        if (!br.permission) {
+          continue
+        }
+        const key = roleMenuBindSelectionKey(br.menuId, br.buttonId)
+        if (key) {
+          ids.push(key)
+        }
+      }
+      if (n.children?.length) {
+        walk(n.children)
+      }
+    }
   }
-  for (const c of node.children ?? []) {
-    ids.push(...collectDescendantMenuIds(c))
-  }
+  walk(roots)
   return ids
 }
 
@@ -100,6 +225,24 @@ function findViewMenuButtonId(buttons: MenuButtonPickerRow[]): string | null {
   const hit = buttons.find((b) => (b.buttonCode ?? '').trim() === ROLE_BIND_VIEW_BUTTON_CODE)
   const mb = hit?.menuButtonId
   return mb != null && String(mb) !== '' ? String(mb) : null
+}
+
+/** 当前节点子树内是否存在任意已勾选按钮（含本节点） */
+function hasAnySelectionInSubtree(
+  node: MenuBindTreeRow,
+  selected: Set<string>,
+  menuIdToButtons: Map<string, MenuButtonPickerRow[]>,
+): boolean {
+  const buttons = menuIdToButtons.get(node.id) ?? []
+  if (buttons.some((b) => b.menuButtonId != null && selected.has(String(b.menuButtonId)))) {
+    return true
+  }
+  for (const c of node.children ?? []) {
+    if (hasAnySelectionInSubtree(c, selected, menuIdToButtons)) {
+      return true
+    }
+  }
+  return false
 }
 
 /**
@@ -142,33 +285,25 @@ export function applyRoleMenuBindImplicitSelections(
     }
   }
 
-  /** 目录：后代 MENU 存在任意勾选时，仅自动勾选该目录的「查看」实例 */
-  function walkCatalog(nodes: MenuBindTreeRow[]) {
+  /** 目录/菜单：子树存在勾选则自动带上本节点「查询」；子树全空则取消（与菜单配置「有子才需父查询」一致） */
+  function applySubtreeViewRules(nodes: MenuBindTreeRow[]) {
     for (const n of nodes) {
       if (n.children?.length) {
-        walkCatalog(n.children)
+        applySubtreeViewRules(n.children)
       }
-      if (n.menuType !== 'CATALOG') {
+      if (n.menuType !== 'CATALOG' && n.menuType !== 'MENU') {
         continue
       }
-      const descMenuIds = collectDescendantMenuIds(n)
-      let anyDesc = false
-      for (const mid of descMenuIds) {
-        const bs = menuIdToButtons.get(mid) ?? []
-        if (bs.some((b) => b.menuButtonId != null && next.has(String(b.menuButtonId)))) {
-          anyDesc = true
-          break
-        }
-      }
+      const anyInTree = hasAnySelectionInSubtree(n, next, menuIdToButtons)
       const viewId = findViewMenuButtonId(n.buttons)
-      if (anyDesc && viewId) {
+      if (anyInTree && viewId) {
         next.add(viewId)
-      } else if (!anyDesc && viewId) {
+      } else if (!anyInTree && viewId) {
         next.delete(viewId)
       }
     }
   }
-  walkCatalog(treeRows)
+  applySubtreeViewRules(treeRows)
 
   return next
 }

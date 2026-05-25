@@ -5,23 +5,25 @@
 import { computed, ref, watch, type ComputedRef } from 'vue'
 import { ElMessage, ElMessageBox, type FormRules } from 'element-plus'
 import {
-  fetchMenuButtonsRolePicker,
-  fetchRoleMenuButtonIds,
-  replaceRoleMenuButtons,
-} from '../../api/permission'
-import { fetchMenuTreeValid } from '../../api/menu'
-import {
   fetchRoleById,
+  fetchRoleMenus,
   fetchRolePage,
   fetchRoleUsers,
   deleteRole,
   replaceRoleUsers,
   saveRole,
+  saveRoleMenus,
 } from '../../api/role'
 import { fetchUserPage } from '../../api/user'
 import { isSessionExpiredError } from '../../utils/sessionExpired'
-import { applyRoleMenuBindImplicitSelections, buildRoleMenuBindTree, type MenuBindTreeRow } from '../../utils/roleMenuBindRules'
-import type { RoleMgmtVO } from '../../models/roleMgmt'
+import {
+  applyRoleMenuBindImplicitSelections,
+  buildRoleMenuBindTreeFromRoleMenus,
+  buildRoleMenuTreeSavePayload,
+  collectGrantedMenuButtonIdsFromRoleMenuTree,
+  type MenuBindTreeRow,
+} from '../../utils/roleMenuBindRules'
+import type { MenuTreeRoleVO, RoleMgmtVO } from '../../models/roleMgmt'
 import type { UserMgmtVO } from '../../models/userMgmt'
 
 export type RoleDialogMode = 'create' | 'edit'
@@ -62,7 +64,9 @@ export function useRoleController() {
   const bindMbPickerLoading = ref(false)
   /** 树表数据：目录 / 菜单层级 + 每行挂载可选按钮实例 */
   const bindMbTreeRows = ref<MenuBindTreeRow[]>([])
-  /** 已选菜单按钮实例 id（含规则推导的隐式「查看」） */
+  /** GET /role/menus/{roleId} 原始树，提交时据此写回 permission */
+  const bindMbSourceTree = ref<MenuTreeRoleVO[]>([])
+  /** 已选勾选键 menuId:buttonId（含规则推导的隐式「查询」） */
   const bindMbMenuButtonIds = ref<string[]>([])
   const bindMbSelectedSet = computed(() => new Set(bindMbMenuButtonIds.value))
 
@@ -317,16 +321,24 @@ export function useRoleController() {
     }
   }
 
-  const loadBindMbPicker = async () => {
+  /** 打开绑定菜单弹窗时一次拉取树 + 按钮勾选态 */
+  const loadBindMbData = async (roleId: string | number): Promise<boolean> => {
     bindMbPickerLoading.value = true
     try {
-      const [picker, menuRoots] = await Promise.all([fetchMenuButtonsRolePicker(), fetchMenuTreeValid()])
-      bindMbTreeRows.value = buildRoleMenuBindTree(menuRoots ?? [], picker)
+      const tree = await fetchRoleMenus(roleId)
+      bindMbSourceTree.value = tree
+      bindMbTreeRows.value = buildRoleMenuBindTreeFromRoleMenus(tree)
+      const granted = collectGrantedMenuButtonIdsFromRoleMenuTree(tree)
+      mergeMbSelectionWithRules(new Set(granted))
+      return true
     } catch (e) {
       if (!isSessionExpiredError(e)) {
-        ElMessage.error(e instanceof Error ? e.message : '加载菜单与按钮列表失败')
+        ElMessage.error(e instanceof Error ? e.message : '加载角色菜单绑定数据失败')
       }
       bindMbTreeRows.value = []
+      bindMbSourceTree.value = []
+      bindMbMenuButtonIds.value = []
+      return false
     } finally {
       bindMbPickerLoading.value = false
     }
@@ -356,14 +368,9 @@ export function useRoleController() {
     bindMbDialogVisible.value = true
     bindMbMenuButtonIds.value = []
     bindMbTreeRows.value = []
-    await loadBindMbPicker()
-    try {
-      const raw = (await fetchRoleMenuButtonIds(row.id)).map((x) => String(x))
-      mergeMbSelectionWithRules(new Set(raw))
-    } catch (e) {
-      if (!isSessionExpiredError(e)) {
-        ElMessage.error(e instanceof Error ? e.message : '加载已绑定菜单按钮失败')
-      }
+    bindMbSourceTree.value = []
+    const ok = await loadBindMbData(row.id)
+    if (!ok) {
       bindMbDialogVisible.value = false
     }
   }
@@ -374,7 +381,12 @@ export function useRoleController() {
     }
     bindMbSubmitLoading.value = true
     try {
-      await replaceRoleMenuButtons(bindMbRoleId.value, bindMbMenuButtonIds.value)
+      const payload = buildRoleMenuTreeSavePayload(
+        bindMbSourceTree.value,
+        bindMbSelectedSet.value,
+        bindMbRoleId.value,
+      )
+      await saveRoleMenus(bindMbRoleId.value, payload)
       ElMessage.success('菜单绑定已保存')
       bindMbDialogVisible.value = false
     } catch (e) {

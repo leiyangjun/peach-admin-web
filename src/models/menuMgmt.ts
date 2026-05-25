@@ -102,7 +102,12 @@ export interface MenuInfoVO {
 
 
 
-/** 当前用户可见菜单树（GET /role/user/menus）；与后端 MenuVO 对齐 */
+/** 登录用户菜单下按钮项（与后端 ButtonUserVO 对齐） */
+export interface ButtonUserVO {
+  buttonType?: string | null
+  buttonName?: string | null
+  buttonCode?: string | null
+}
 
 export interface UserMenuVO {
 
@@ -143,10 +148,15 @@ export interface UserMenuVO {
   editTime?: string | null
 
   children?: UserMenuVO[] | null
-
 }
 
-
+/** 当前用户可见菜单树（GET /role/user/menus）；与后端 MenuTreeUserVO 对齐 */
+export interface MenuTreeUserVO extends UserMenuVO {
+  /** true 表示超级管理员，前端不按 buttons 过滤按钮 */
+  admin?: boolean
+  buttons?: ButtonUserVO[] | null
+  children?: MenuTreeUserVO[] | null
+}
 
 /** 菜单管理：树与表单主体（不含 buttonBindings） */
 

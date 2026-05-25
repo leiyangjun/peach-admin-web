@@ -2,7 +2,7 @@
 
  * @deprecated 旧版聚合权限（GET /permission/current-user）；运行时已改用
 
- * {@link ../api/role.ts fetchCurrentUserMenuTree} 与 {@link ../api/role.ts fetchCurrentUserMenuButtons}。
+ * {@link ../api/role.ts fetchUserMenus}（GET /admin/role/user/menus）。
 
  */
 

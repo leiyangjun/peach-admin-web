@@ -73,7 +73,7 @@ router.beforeEach(async (to, _from, next) => {
     try {
       await permissionStore.loadCurrentUserPermission()
     } catch {
-      // 权限加载失败时回退写死侧栏，避免白屏
+      // 权限加载失败时回退写死侧栏，避免白屏；有缓存时 state 初始化已 loaded，不会进入此分支
     }
   }
 

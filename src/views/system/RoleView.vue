@@ -63,12 +63,12 @@ const {
 
 const { hasButton } = useButtonPermission()
 
-/** 树表内按钮勾选（Element Plus checkbox 变更值兼容） */
-function onMbCheckboxChange(menuButtonId: string | undefined, val: unknown) {
-  if (menuButtonId == null || menuButtonId === '') {
+/** 树表内按钮勾选（menuButtonId 为 menuId:字典按钮 id 复合键） */
+function onMbCheckboxChange(selectionKey: string | undefined, val: unknown) {
+  if (selectionKey == null || selectionKey === '') {
     return
   }
-  toggleBindMbMenuButton(menuButtonId, val === true)
+  toggleBindMbMenuButton(selectionKey, val === true)
 }
 
 const onSaveRole = async () => {
@@ -361,7 +361,7 @@ function userDisplayRealName(row: UserMgmtVO): string {
             <div v-else class="mb-button-cell">
               <el-checkbox
                 v-for="b in row.buttons"
-                :key="String(b.menuButtonId)"
+                :key="`${row.id}:${b.menuButtonId ?? b.buttonCode ?? ''}`"
                 :model-value="b.menuButtonId != null && bindMbSelectedSet.has(String(b.menuButtonId))"
                 size="small"
                 class="mb-btn-checkbox"

@@ -4,31 +4,35 @@
  */
 
 import httpCommon from './httpCommon'
+import { normalizeMenuTreeRoleRoots } from '../utils/roleMenuBindRules'
 import { isPeachSuccess } from '../utils/apiResult'
 import type { ApiEnvelope } from '../models/auth'
-import type { UserMenuVO } from '../models/menuMgmt'
-import type { RoleMgmtVO, RolePageQuery, RoleUserVO } from '../models/roleMgmt'
+import type { MenuTreeUserVO, UserMenuVO } from '../models/menuMgmt'
+import type { MenuTreeRoleVO, RoleMgmtVO, RolePageQuery, RoleUserVO } from '../models/roleMgmt'
 import type { UserMgmtVO } from '../models/userMgmt'
 
 const BASE = '/role'
 
-/** 当前登录用户可见菜单树（GET /admin/role/user/menus） */
-export async function fetchCurrentUserMenuTree(): Promise<UserMenuVO[]> {
-  const { data: body } = await httpCommon.get<ApiEnvelope<UserMenuVO[]>>(`${BASE}/user/menus`)
+/**
+ * 登录后一次性拉取菜单树与按钮权限（GET /admin/role/user/menus → MenuTreeUserVO[]）。
+ * 经 {@link ./httpCommon} 访问 peach-common-service 管理端 /role。
+ */
+export async function fetchUserMenus(): Promise<MenuTreeUserVO[]> {
+  const { data: body } = await httpCommon.get<ApiEnvelope<MenuTreeUserVO[]>>(`${BASE}/user/menus`)
   if (!isPeachSuccess(body.code)) {
-    throw new Error(body.msg || '加载当前用户菜单失败')
+    throw new Error(body.msg || '加载当前用户菜单权限失败')
   }
   return body.data ?? []
 }
 
-/** 当前用户对指定菜单已授权按钮 CODE 列表（GET /admin/role/user/{menuId}/buttons） */
-export async function fetchCurrentUserMenuButtons(menuId: string | number): Promise<string[]> {
-  const id = encodeURIComponent(String(menuId))
-  const { data: body } = await httpCommon.get<ApiEnvelope<string[]>>(`${BASE}/user/${id}/buttons`)
-  if (!isPeachSuccess(body.code)) {
-    throw new Error(body.msg || '加载菜单按钮权限失败')
-  }
-  return body.data ?? []
+/** @deprecated 请使用 {@link fetchUserMenus} */
+export async function fetchCurrentUserMenuTree(): Promise<UserMenuVO[]> {
+  return fetchUserMenus()
+}
+
+/** @deprecated 按钮已随 {@link fetchUserMenus} 一并返回，勿再按 menuId 二次请求 */
+export async function fetchCurrentUserMenuButtons(_menuId: string | number): Promise<string[]> {
+  return []
 }
 
 export interface PageInfoRole {
@@ -108,5 +112,33 @@ export async function replaceRoleUsers(roleId: string | number, users: RoleUserV
   const { data: body } = await httpCommon.put<ApiEnvelope<unknown>>(`${BASE}/${roleId}/users`, users)
   if (!isPeachSuccess(body.code)) {
     throw new Error(body.msg || '保存用户绑定失败')
+  }
+}
+
+/** 角色绑定菜单：树形菜单 + 各菜单按钮及 permission 勾选态（GET /role/menus/{roleId}） */
+export async function fetchRoleMenus(roleId: string | number): Promise<MenuTreeRoleVO[]> {
+  const id = encodeURIComponent(String(roleId))
+  const { data: body } = await httpCommon.get<ApiEnvelope<MenuTreeRoleVO[]>>(`${BASE}/menus/${id}`)
+  if (!isPeachSuccess(body.code)) {
+    throw new Error(body.msg || '加载角色菜单绑定数据失败')
+  }
+  return normalizeMenuTreeRoleRoots(body.data)
+}
+
+/**
+ * 保存角色绑定菜单（POST /role/menus/{roleId}）。
+ * 请求体与 GET /role/menus/{roleId} 返回结构一致：根节点数组，各节点 buttonRoleVOs[].permission 表示勾选态。
+ */
+export async function saveRoleMenus(
+  roleId: string | number,
+  payload: MenuTreeRoleVO[],
+): Promise<void> {
+  const id = encodeURIComponent(String(roleId))
+  const trees = normalizeMenuTreeRoleRoots(payload)
+  const { data: body } = await httpCommon.post<ApiEnvelope<unknown>>(`${BASE}/menus/${id}`, trees, {
+    headers: { 'Content-Type': 'application/json' },
+  })
+  if (!isPeachSuccess(body.code)) {
+    throw new Error(body.msg || '保存角色菜单绑定失败')
   }
 }

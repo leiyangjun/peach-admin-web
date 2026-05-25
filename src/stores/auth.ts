@@ -44,7 +44,7 @@ export const useAuthStore = defineStore('auth', {
         nickname: displayName,
       }
       localStorage.setItem(USER_KEY, JSON.stringify(this.user))
-      await usePermissionStore().loadCurrentUserPermission()
+      await usePermissionStore().loadCurrentUserPermission({ force: true })
     },
     /** 登录或 refresh 成功后写入本地与内存 */
     applyTokens(tokens: { accessToken: string; refreshToken?: string }) {

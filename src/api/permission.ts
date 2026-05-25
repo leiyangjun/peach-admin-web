@@ -65,6 +65,7 @@ export async function replaceMenuButtonApis(menuButtonId: string | number, apis:
   }
 }
 
+/** @deprecated 角色绑定菜单请使用 {@link ../api/role.ts fetchRoleMenus} 中的 permission 字段 */
 export async function fetchRoleMenuButtonIds(roleId: string | number): Promise<string[]> {
   const { data: body } = await httpCommon.get<ApiEnvelope<string[]>>(`${BASE}/role/${roleId}/menu-button-ids`)
   if (!isPeachSuccess(body.code) || body.data == null) {
@@ -73,6 +74,7 @@ export async function fetchRoleMenuButtonIds(roleId: string | number): Promise<s
   return body.data.map((x) => String(x))
 }
 
+/** @deprecated 角色绑定菜单请使用 {@link ../api/role.ts saveRoleMenus}（POST /role/menus/{roleId}） */
 export async function replaceRoleMenuButtons(roleId: string | number, menuButtonIds: string[]): Promise<void> {
   const { data: body } = await httpCommon.put<ApiEnvelope<unknown>>(`${BASE}/role/${roleId}/menu-buttons`, {
     menuButtonIds,
@@ -82,7 +84,7 @@ export async function replaceRoleMenuButtons(roleId: string | number, menuButton
   }
 }
 
-/** @deprecated 请使用 {@link ../api/role.ts fetchCurrentUserMenuTree} 与 {@link ../api/role.ts fetchCurrentUserMenuButtons} */
+/** @deprecated 请使用 {@link ../api/role.ts fetchUserMenus} */
 export async function fetchCurrentUserPermission(): Promise<CurrentUserPermissionVO> {
   const { data: body } = await httpCommon.get<ApiEnvelope<CurrentUserPermissionVO>>(`${BASE}/current-user`)
   if (!isPeachSuccess(body.code) || body.data == null) {
@@ -91,6 +93,7 @@ export async function fetchCurrentUserPermission(): Promise<CurrentUserPermissio
   return body.data
 }
 
+/** @deprecated 角色绑定菜单请使用 {@link ../api/role.ts fetchRoleMenus} */
 export async function fetchMenuButtonsRolePicker(): Promise<MenuButtonPickerRow[]> {
   const { data: body } = await httpCommon.get<ApiEnvelope<MenuButtonPickerRow[]>>(
     `${BASE}/menu-buttons/role-picker`,

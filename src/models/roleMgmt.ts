@@ -27,3 +27,32 @@ export interface RoleUserVO {
   userId?: string | number
   createTime?: string
 }
+
+/** 角色绑定菜单：单菜单下按钮及勾选态（GET /role/menus/{roleId}） */
+export interface MenuButtonRoleVO {
+  roleId?: string | number
+  menuId?: string | number
+  /** 字典按钮主键（cmn_button.id）；与 menuId 组合为前端勾选键，与 cmn_role_button 授权维度一致 */
+  buttonId?: string | number
+  buttonCode?: string
+  buttonName?: string
+  /** true=已勾选，false=未勾选 */
+  permission?: boolean
+}
+
+/** 角色绑定菜单树节点（MenuTreeRoleVO） */
+export interface MenuTreeRoleVO {
+  id?: string | number
+  parentId?: string | number
+  menuCode?: string
+  menuName?: string
+  menuType?: string
+  routePath?: string
+  componentPath?: string
+  icon?: string
+  orderNo?: number
+  remark?: string
+  valid?: number
+  children?: MenuTreeRoleVO[]
+  buttonRoleVOs?: MenuButtonRoleVO[]
+}
