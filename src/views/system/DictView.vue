@@ -386,11 +386,6 @@ const onSaveDict = async () => {
                   </el-form-item>
                 </el-col>
                 <el-col :span="24">
-                  <el-form-item label="父级 ID">
-                    <el-input v-model="dictForm.parentId" placeholder="0 表示根节点" clearable class="dict-drawer-field" />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="24">
                   <el-form-item label="默认项">
                     <el-switch
                       :model-value="(dictForm.isDefault ?? 0) === 1"

@@ -11,6 +11,7 @@ export interface DictMgmtVO {
   /** 状态：1 启用 0 停用（停用即业务上的“逻辑隐藏”，无 deleted 列） */
   status?: number
   remark?: string
+  /** 后端字段；前端不编辑，保存时固定为 0（根节点） */
   parentId?: string | number
   cssClass?: string
   listClass?: string

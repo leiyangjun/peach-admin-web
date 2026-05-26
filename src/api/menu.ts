@@ -31,6 +31,20 @@ export async function fetchMenuById(id: number | string): Promise<MenuInfoVO> {
   return body.data
 }
 
+/** 拖拽调整菜单父级；成功后返回最新全量树 */
+export async function updateMenuParent(
+  menuId: number | string,
+  parentId: number | string,
+): Promise<MenuMgmtVO[]> {
+  const { data: body } = await httpCommon.put<ApiEnvelope<MenuMgmtVO[]>>(
+    `${BASE}/${menuId}/${parentId}`,
+  )
+  if (!isPeachSuccess(body.code) || body.data == null) {
+    throw new Error(body.msg || '调整上级失败')
+  }
+  return body.data
+}
+
 /** 保存或更新菜单（MenuInfoVO；menuButtons 非 null 时全量覆盖按钮与 API） */
 export async function saveMenu(payload: MenuInfoVO): Promise<MenuInfoVO> {
   const { data: body } = await httpCommon.post<ApiEnvelope<unknown>>(BASE, payload)

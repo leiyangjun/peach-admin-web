@@ -21,7 +21,9 @@ import {
   Files,
   Fold,
   FolderOpened,
+  Finished,
   Goods,
+  Guide,
   Grid,
   Histogram,
   House,
@@ -39,6 +41,7 @@ import {
   Plus,
   Promotion,
   Search,
+  SetUp,
   Setting,
   Share,
   ShoppingCart,
@@ -110,6 +113,9 @@ export const MENU_ICON_OPTIONS: MenuIconOption[] = [
   { label: '警告', value: 'Warning', component: Warning },
   { label: '展开', value: 'Expand', component: Expand },
   { label: '折叠', value: 'Fold', component: Fold },
+  { label: '完成', value: 'Finished', component: Finished },
+  { label: '向导', value: 'Guide', component: Guide },
+  { label: '配置', value: 'SetUp', component: SetUp },
 ]
 
 const ICON_MAP = new Map<string, Component>()

@@ -8,9 +8,26 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 
 import type { MenuButtonInfoItem, MenuInfoVO, MenuMgmtVO } from '../../models/menuMgmt'
 
-import { deleteMenuPhysically, fetchMenuById, fetchMenuTreeAll, saveMenu } from '../../api/menu'
+import {
+  deleteMenuPhysically,
+  fetchMenuById,
+  fetchMenuTreeAll,
+  saveMenu,
+  updateMenuParent,
+} from '../../api/menu'
 
 import { isSessionExpiredError } from '../../utils/sessionExpired'
+
+import {
+  computeTreeDropParentId,
+  findMenuNameById,
+  findMenuNodeById,
+  type TreeDropNodeLike,
+  type TreeDropType,
+} from '../../utils/menuTreeWalk'
+
+const MENU_TYPE_CATALOG = 'CATALOG'
+const MENU_TYPE_MENU = 'MENU'
 
 /** 右侧面板模式 */
 export type MenuPanelMode = 'idle' | 'create' | 'edit'
@@ -36,28 +53,32 @@ function cloneFormFromMenu(d: MenuMgmtVO): MenuMgmtVO {
   }
 }
 
-/** 在菜单树中按 id 查找节点名称（用于上级菜单展示） */
-function findMenuNameInTree(nodes: MenuMgmtVO[], id: string | number | null | undefined): string | null {
-  if (id === undefined || id === null) {
-    return null
+/** 收集节点自身及全部子孙 id（编辑时父级候选须排除，防成环） */
+function collectSelfAndDescendantIds(nodes: MenuMgmtVO[], targetId: string): Set<string> {
+  const blocked = new Set<string>()
+
+  function collectSubtree(n: MenuMgmtVO) {
+    if (n.id != null) {
+      blocked.add(String(n.id))
+    }
+    n.children?.forEach(collectSubtree)
   }
 
-  const key = String(id)
-
-  for (const n of nodes) {
-    if (String(n.id ?? '') === key) {
-      return n.menuName ?? null
-    }
-
-    if (n.children?.length) {
-      const hit = findMenuNameInTree(n.children, id)
-      if (hit) {
-        return hit
+  function walk(list: MenuMgmtVO[]): boolean {
+    for (const n of list) {
+      if (String(n.id ?? '') === targetId) {
+        collectSubtree(n)
+        return true
+      }
+      if (n.children?.length && walk(n.children)) {
+        return true
       }
     }
+    return false
   }
 
-  return null
+  walk(nodes)
+  return blocked
 }
 
 export type UseMenuControllerOptions = {
@@ -91,6 +112,155 @@ export function useMenuController(options?: UseMenuControllerOptions) {
   const panelMode = ref<MenuPanelMode>('idle')
 
   const formModel = ref<MenuMgmtVO>(emptyForm(0))
+
+  /** 右侧表单只读展示：上级菜单名称 */
+  const parentMenuLabel = computed(() => {
+    const pid = formModel.value.parentId ?? 0
+    if (Number(pid) === 0) {
+      return formModel.value.menuType === MENU_TYPE_MENU ? '（须为目录子级）' : '（一级菜单）'
+    }
+    return findMenuNameById(treeData.value, pid) ?? `ID: ${pid}`
+  })
+
+  function formatParentTargetLabel(parentId: string | number): string {
+    if (Number(parentId) === 0) {
+      return '一级（根）'
+    }
+    return findMenuNameById(treeData.value, parentId) ?? `ID: ${parentId}`
+  }
+
+  function isBlockedDropParent(dragId: string, newParentId: string | number): boolean {
+    if (String(newParentId) === dragId) {
+      return true
+    }
+    if (Number(newParentId) === 0) {
+      return false
+    }
+    const blocked = collectSelfAndDescendantIds(treeData.value, dragId)
+    return blocked.has(String(newParentId))
+  }
+
+  function validateDropParentRule(
+    dragData: MenuMgmtVO,
+    newParentId: string | number,
+    dropNode: TreeDropNodeLike,
+    dropType: TreeDropType | string,
+  ): boolean {
+    const dragId = String(dragData.id ?? '')
+    if (!dragId) {
+      return false
+    }
+    if (isBlockedDropParent(dragId, newParentId)) {
+      return false
+    }
+
+    const oldParentId = dragData.parentId ?? 0
+    if (String(newParentId) === String(oldParentId)) {
+      return false
+    }
+
+    if (dragData.menuType === MENU_TYPE_MENU) {
+      if (Number(newParentId) === 0) {
+        return false
+      }
+      const parentNode = findMenuNodeById(treeData.value, newParentId)
+      if (!parentNode || parentNode.menuType !== MENU_TYPE_CATALOG) {
+        return false
+      }
+      if (dropType === 'inner' && dropNode.data.menuType !== MENU_TYPE_CATALOG) {
+        return false
+      }
+      return true
+    }
+
+    if (dragData.menuType === MENU_TYPE_CATALOG) {
+      if (Number(newParentId) === 0) {
+        return true
+      }
+      const parentNode = findMenuNodeById(treeData.value, newParentId)
+      return parentNode?.menuType === MENU_TYPE_CATALOG
+    }
+
+    return false
+  }
+
+  const allowTreeDrag = (node: TreeDropNodeLike): boolean => node.data.id != null
+
+  const allowTreeDrop = (
+    draggingNode: TreeDropNodeLike,
+    dropNode: TreeDropNodeLike,
+    dropType: TreeDropType | string,
+  ): boolean => {
+    const dragData = draggingNode.data
+    if (dragData.id == null) {
+      return false
+    }
+    const newParentId = computeTreeDropParentId(dropNode, dropType)
+    return validateDropParentRule(dragData, newParentId, dropNode, dropType)
+  }
+
+  const persistMenuParentChange = async (dragData: MenuMgmtVO, newParentId: string | number) => {
+    const menuId = String(dragData.id)
+
+    treeData.value = await updateMenuParent(menuId, newParentId)
+
+    ElMessage.success('操作成功')
+
+    if (selectedId.value === menuId) {
+      menuInfo.value = await fetchMenuById(menuId)
+      syncFormFromMenuInfo()
+    }
+  }
+
+  const onTreeNodeDrop = async (
+    draggingNode: TreeDropNodeLike,
+    dropNode: TreeDropNodeLike,
+    dropType: TreeDropType | string,
+  ) => {
+    const dragData = draggingNode.data
+    if (dragData.id == null) {
+      await loadTree()
+      return
+    }
+
+    const newParentId = computeTreeDropParentId(dropNode, dropType)
+    const oldParentId = dragData.parentId ?? 0
+    if (String(newParentId) === String(oldParentId)) {
+      await loadTree()
+      return
+    }
+
+    if (!validateDropParentRule(dragData, newParentId, dropNode, dropType)) {
+      await loadTree()
+      return
+    }
+
+    const dragLabel = dragData.menuName?.trim() || '该菜单'
+    const targetLabel = formatParentTargetLabel(newParentId)
+
+    try {
+      await ElMessageBox.confirm(`将「${dragLabel}」移动到「${targetLabel}」下？`, '调整上级', {
+        type: 'warning',
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+      })
+    } catch {
+      await loadTree()
+      return
+    }
+
+    loading.value = true
+    try {
+      await persistMenuParentChange(dragData, newParentId)
+    } catch (e) {
+      await loadTree()
+      if (!isSessionExpiredError(e)) {
+        ElMessage.error(e instanceof Error ? e.message : '调整上级失败')
+      }
+    } finally {
+      loading.value = false
+    }
+  }
 
   const loadTree = async () => {
     loading.value = true
@@ -244,16 +414,30 @@ export function useMenuController(options?: UseMenuControllerOptions) {
     }
   }
 
+  const validateBeforeSubmit = (): boolean => {
+    const m = formModel.value
+    if (!m.menuCode?.trim() || !m.menuName?.trim()) {
+      ElMessage.warning('请填写菜单编码与名称')
+      return false
+    }
+    if (!m.menuType || (m.menuType !== MENU_TYPE_CATALOG && m.menuType !== MENU_TYPE_MENU)) {
+      ElMessage.warning('请选择类型：目录或菜单')
+      return false
+    }
+    if (m.menuType === MENU_TYPE_MENU) {
+      const pid = m.parentId
+      if (pid === undefined || pid === null || pid === '' || Number(pid) === 0) {
+        ElMessage.warning('菜单类型须选择目录作为上级')
+        return false
+      }
+    }
+    return true
+  }
+
   const submitForm = async () => {
     const m = formModel.value
 
-    if (!m.menuCode?.trim() || !m.menuName?.trim()) {
-      ElMessage.warning('请填写菜单编码与名称')
-      return
-    }
-
-    if (!m.menuType || (m.menuType !== 'CATALOG' && m.menuType !== 'MENU')) {
-      ElMessage.warning('请选择类型：目录或菜单')
+    if (!validateBeforeSubmit()) {
       return
     }
 
@@ -338,19 +522,6 @@ export function useMenuController(options?: UseMenuControllerOptions) {
       panelMode.value === 'create' || (panelMode.value === 'edit' && menuInfo.value?.menu != null),
   )
 
-  /** 表单区展示的上级菜单名称 */
-  const parentMenuLabel = computed(() => {
-    const pid = formModel.value.parentId
-
-    if (pid == null || pid === 0 || pid === '0') {
-      return '（一级菜单）'
-    }
-
-    const name = findMenuNameInTree(treeData.value, pid)
-
-    return name ?? `（上级 id=${pid}）`
-  })
-
   onMounted(() => {
     void (async () => {
       await loadTree()
@@ -368,6 +539,9 @@ export function useMenuController(options?: UseMenuControllerOptions) {
     showEditor,
     parentMenuLabel,
     permissionBootstrapNonce,
+    allowTreeDrag,
+    allowTreeDrop,
+    onTreeNodeDrop,
     onTreeNodeClick,
     openCreateMenu,
     cancelPanel,

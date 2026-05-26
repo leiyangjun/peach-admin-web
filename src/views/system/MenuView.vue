@@ -45,6 +45,9 @@ const {
   openCreateMenu: openCreateMenuBase,
   onTreeNodeClick: onTreeNodeClickBase,
   cancelPanel: cancelPanelBase,
+  allowTreeDrag,
+  allowTreeDrop,
+  onTreeNodeDrop,
   permissionBootstrapNonce,
   menuInfo,
 } = useMenuController({
@@ -133,6 +136,8 @@ const { treePanelWidthPx, onTreeResizePointerDown } = useMenuPanelResize()
 /** 目录类型不需要路由/组件，输入禁用并由 watch 清空 */
 const isCatalogMenu = computed(() => formModel.value.menuType === 'CATALOG')
 
+const canDragMenuTree = computed(() => hasButton(CMN_BUTTON.EDIT))
+
 watch(
   () => formModel.value.menuType,
   (t) => {
@@ -164,7 +169,11 @@ watch(
                 :current-node-key="selectedId ?? undefined"
                 :props="{ label: 'menuName', children: 'children' }"
                 highlight-current
+                :draggable="canDragMenuTree"
+                :allow-drag="allowTreeDrag"
+                :allow-drop="allowTreeDrop"
                 @node-click="onTreeNodeClick"
+                @node-drop="onTreeNodeDrop"
               >
                 <template #default="{ data }">
                   <div class="menu-tree-node">
@@ -238,15 +247,17 @@ watch(
                       </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12">
-                      <el-form-item :for="''" required>
+                      <el-form-item :for="''" required class="form-item--label-tip">
                         <template #label>
                           <span class="label-with-tip">
                             类型
                             <el-tooltip
-                              content="修改时切换「目录」会暂存当前按钮与 API 绑定，切回「菜单」后恢复；最终以「提交」写入数据库。"
+                              content="「目录」用于侧边栏分组，不绑定页面路由；「菜单」为可访问页面，须配置路由并可绑定按钮与 API。"
                               placement="top"
                             >
-                              <el-icon class="label-tip-icon"><QuestionFilled /></el-icon>
+                              <span class="tip-trigger" tabindex="0" role="button" aria-label="菜单类型说明">
+                                <el-icon><QuestionFilled /></el-icon>
+                              </span>
                             </el-tooltip>
                           </span>
                         </template>
@@ -261,12 +272,17 @@ watch(
                       </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12">
-                      <el-form-item :for="''" class="form-item--switch">
+                      <el-form-item :for="''" class="form-item--switch form-item--label-tip">
                         <template #label>
                           <span class="label-with-tip">
                             菜单显示
-                            <el-tooltip content="关闭后为逻辑停用，不会在「有效菜单树」中展示。" placement="top">
-                              <el-icon class="label-tip-icon"><QuestionFilled /></el-icon>
+                            <el-tooltip
+                              content="控制是否在侧边栏及有效菜单树中显示；关闭后为逻辑停用，仍可在本页维护数据。"
+                              placement="top"
+                            >
+                              <span class="tip-trigger" tabindex="0" role="button" aria-label="菜单显示说明">
+                                <el-icon><QuestionFilled /></el-icon>
+                              </span>
                             </el-tooltip>
                           </span>
                         </template>
@@ -281,8 +297,21 @@ watch(
                       </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12">
-                      <el-form-item :for="''" label="上级菜单">
-                        <el-input :model-value="parentMenuLabel" disabled class="w-full" />
+                      <el-form-item :for="''" required class="form-item--label-tip">
+                        <template #label>
+                          <span class="label-with-tip">
+                            上级菜单
+                            <el-tooltip
+                              content="如需调整菜单层级，请拖动右侧对应菜单到目标位置即可！"
+                              placement="top"
+                            >
+                              <span class="tip-trigger" tabindex="0" role="button" aria-label="上级菜单说明">
+                                <el-icon><QuestionFilled /></el-icon>
+                              </span>
+                            </el-tooltip>
+                          </span>
+                        </template>
+                        <el-input :model-value="parentMenuLabel" disabled placeholder="—" />
                       </el-form-item>
                     </el-col>
                   </el-row>
@@ -450,6 +479,7 @@ watch(
                   <p class="empty-title">未选择菜单或未进入编辑</p>
                   <ol class="empty-steps">
                     <li>在左侧树中<strong>点击</strong>节点，右侧加载详情并可编辑（布局与新增一致）</li>
+                    <li>有编辑权限时，可在左侧树<strong>拖拽</strong>节点调整上级菜单</li>
                     <li>树底「+」行：始终新增<strong>一级菜单</strong>；悬停树节点行右侧「+」：在该节点下新增<strong>子菜单</strong></li>
                   </ol>
                 </div>
@@ -723,11 +753,32 @@ watch(
   gap: 4px;
 }
 
-.label-tip-icon {
-  font-size: 14px;
+/** 带问号提示的 label：恢复 hover（全局 .el-form-item__label 为 pointer-events: none） */
+.menu-edit-form :deep(.form-item--label-tip .el-form-item__label) {
+  overflow: visible;
+  pointer-events: auto;
+}
+
+.tip-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
   color: var(--el-text-color-secondary);
-  cursor: help;
   outline: none;
+  pointer-events: auto;
+}
+
+.tip-trigger .el-icon {
+  font-size: 14px;
+}
+
+.tip-trigger:hover,
+.tip-trigger:focus-visible {
+  color: var(--el-color-primary);
 }
 
 .menu-edit-form--balanced :deep(.el-form-item) {
@@ -831,6 +882,14 @@ watch(
   display: flex;
   align-items: center;
   min-width: 0;
+}
+
+.menu-tree :deep(.el-tree-node.is-dragging > .el-tree-node__content) {
+  cursor: grabbing;
+}
+
+.menu-tree :deep(.el-tree-node.is-drop-inner > .el-tree-node__content) {
+  background-color: var(--el-color-primary-light-9);
 }
 
 /** valid=1 或未设置：正常强调色；逻辑停用(valid=0)：弱化灰 */

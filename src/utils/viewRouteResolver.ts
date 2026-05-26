@@ -27,13 +27,17 @@ function globKeyToNormPath(globKey: string): string | null {
   return m ? m[1].toLowerCase() : null
 }
 
-/** 将 URL 中的一段转为 PascalCase（user、USER → User） */
+/** 将 URL 中的一段转为 PascalCase（user、USER → User；menu-ops → MenuOps） */
 function segmentToPascal(seg: string): string {
   const t = seg.trim()
   if (!t) {
     return ''
   }
-  return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase()
+  return t
+    .split('-')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join('')
 }
 
 /**

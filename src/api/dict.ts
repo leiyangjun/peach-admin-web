@@ -39,6 +39,24 @@ export async function fetchDictPage(query: DictPageQuery): Promise<PageInfoDict>
   return body.data
 }
 
+/**
+ * 按字典类型获取有效（启用）码表项，供下拉与 label 展示。
+ * GET /dict/valid/{dictType}
+ */
+export async function fetchValidDictByType(dictType: string): Promise<DictMgmtVO[]> {
+  const type = dictType?.trim()
+  if (!type) {
+    throw new Error('字典类型不能为空')
+  }
+  const { data: body } = await httpCommon.get<ApiEnvelope<DictMgmtVO[]>>(
+    `${BASE}/valid/${encodeURIComponent(type)}`,
+  )
+  if (!isPeachSuccess(body.code) || body.data == null) {
+    throw new Error(body.msg || '加载有效码表项失败')
+  }
+  return body.data
+}
+
 /** 已存在的字典类型编码列表（去重），来自 GET /dict/types */
 export async function fetchDictTypes(): Promise<string[]> {
   const { data: body } = await httpCommon.get<ApiEnvelope<string[]>>(`${BASE}/types`)

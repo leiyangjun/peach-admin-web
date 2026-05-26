@@ -10,17 +10,6 @@ import type { DictMgmtVO } from '../../models/dictMgmt'
 
 export type DictDrawerMode = 'create' | 'edit'
 
-function toParentId(v: unknown): number {
-  if (v === '' || v === undefined || v === null) {
-    return 0
-  }
-  if (typeof v === 'number') {
-    return Number.isFinite(v) ? v : 0
-  }
-  const n = Number(String(v).trim())
-  return Number.isFinite(n) ? n : 0
-}
-
 export function useDictController() {
   const keyword = ref('')
   /** undefined=全部；1=仅启用；0=仅停用 */
@@ -106,7 +95,6 @@ export function useDictController() {
     dictValue: '',
     sortNo: 0,
     remark: '',
-    parentId: 0,
     cssClass: '',
     listClass: '',
     isDefault: 0,
@@ -151,7 +139,8 @@ export function useDictController() {
         dictValue: f.dictValue?.trim(),
         sortNo: f.sortNo ?? 0,
         remark: f.remark,
-        parentId: toParentId(f.parentId),
+        /** 暂不支持多级码表，固定根节点（与后端 DictVO 约定一致） */
+        parentId: 0,
         cssClass: f.cssClass?.trim() || undefined,
         listClass: f.listClass?.trim() || undefined,
         isDefault: f.isDefault ?? 0,
