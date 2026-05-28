@@ -54,7 +54,11 @@ export function clearRegisteredMenuRoutes(router: Router): void {
 /** 与 AdminShell 静态子路由冲突的 path 前缀，动态注册时跳过 */
 function isReservedStaticPath(fullPath: string): boolean {
   const p = fullPath.replace(/^\/+/, '')
-  return p === 'dashboard' || p.startsWith('frame/') || p.startsWith('system/scheduler/edit')
+  return (
+    p === 'dashboard'
+    || p.startsWith('frame/')
+    || p.startsWith('system/scheduler/edit')
+  )
 }
 
 function collectMenuRoutes(nodes: UserMenuVO[] | null | undefined, out: UserMenuVO[]): void {

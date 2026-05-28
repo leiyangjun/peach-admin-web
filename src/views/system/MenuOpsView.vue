@@ -7,23 +7,26 @@ import { Plus, QuestionFilled } from '@element-plus/icons-vue'
 import { useMenuOpsController } from '../../controllers/system/useMenuOpsController'
 import { useMenuPanelResize } from '../../composables/useMenuPanelResize'
 import { MENU_ICON_OPTIONS, type MenuIconOption } from '../../constants/menuIconOptions'
-import { CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
+import { BTN_UI, CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
 import { useButtonPermission } from '../../composables/useButtonPermission'
 import type { MenuOpsTreeNode } from '../../models/menuOps'
 
 const {
   loading,
   treeData,
-  parentTreeOptions,
-  parentPickerRootLabel,
+  parentMenuLabel,
   selectedId,
   panelMode,
   formModel,
   showEditor,
   menuTypeLabel,
+  menuTypeTagType,
   isCatalogNode,
-  isCatalogForm,
+  canDeleteCatalog,
   onTreeNodeClick,
+  allowTreeDrag,
+  allowTreeDrop,
+  onTreeNodeDrop,
   openCreateMenu,
   cancelPanel,
   submitForm,
@@ -32,6 +35,8 @@ const {
 
 const { hasButton } = useButtonPermission()
 const { treePanelWidthPx, onTreeResizePointerDown } = useMenuPanelResize()
+
+const canDragMenuTree = computed(() => hasButton(CMN_BUTTON.EDIT))
 
 function menuTreeLabelClass(data: MenuOpsTreeNode): string {
   const v = data.valid
@@ -47,11 +52,6 @@ const iconSelectOptions = computed((): MenuIconOption[] => {
   return MENU_ICON_OPTIONS
 })
 
-const parentPickerData = computed(() => [
-  { id: 0, menuName: parentPickerRootLabel.value, menuType: 'CATALOG', children: parentTreeOptions.value },
-])
-
-const isMenuTypeForm = computed(() => formModel.value.menuType === 'MENU')
 </script>
 
 <template>
@@ -74,12 +74,21 @@ const isMenuTypeForm = computed(() => formModel.value.menuType === 'MENU')
                 :current-node-key="selectedId ?? undefined"
                 :props="{ label: 'menuName', children: 'children' }"
                 highlight-current
+                :draggable="canDragMenuTree"
+                :allow-drag="allowTreeDrag"
+                :allow-drop="allowTreeDrop"
                 @node-click="onTreeNodeClick"
+                @node-drop="onTreeNodeDrop"
               >
                 <template #default="{ data }">
                   <div class="menu-tree-node">
                     <span :class="menuTreeLabelClass(data)">{{ data.menuName }}</span>
-                    <el-tag v-if="data.menuType" size="small" type="info" class="type-tag">
+                    <el-tag
+                      v-if="data.menuType"
+                      size="small"
+                      :type="menuTypeTagType(data.menuType)"
+                      class="type-tag"
+                    >
                       {{ menuTypeLabel(data.menuType) }}
                     </el-tag>
                     <el-tooltip
@@ -154,8 +163,10 @@ const isMenuTypeForm = computed(() => formModel.value.menuType === 'MENU')
                     </el-col>
                     <el-col :xs="24" :sm="12">
                       <el-form-item :for="''" label="类型">
-                        <el-tag v-if="panelMode === 'create'" type="info">目录</el-tag>
-                        <el-tag v-else type="info">{{ menuTypeLabel(formModel.menuType) }}</el-tag>
+                        <el-tag v-if="panelMode === 'create'" type="primary">目录</el-tag>
+                        <el-tag v-else :type="menuTypeTagType(formModel.menuType)">
+                          {{ menuTypeLabel(formModel.menuType) }}
+                        </el-tag>
                       </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12">
@@ -164,12 +175,14 @@ const isMenuTypeForm = computed(() => formModel.value.menuType === 'MENU')
                       </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12">
-                      <el-form-item :for="''" class="form-item--switch">
+                      <el-form-item :for="''" class="form-item--switch form-item--label-tip">
                         <template #label>
                           <span class="label-with-tip">
                             菜单显示
                             <el-tooltip content="关闭后为逻辑停用，不会在有效菜单树中展示。" placement="top">
-                              <el-icon class="label-tip-icon"><QuestionFilled /></el-icon>
+                              <span class="tip-trigger" tabindex="0" role="button" aria-label="菜单显示说明">
+                                <el-icon><QuestionFilled /></el-icon>
+                              </span>
                             </el-tooltip>
                           </span>
                         </template>
@@ -184,24 +197,21 @@ const isMenuTypeForm = computed(() => formModel.value.menuType === 'MENU')
                       </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12">
-                      <el-form-item :for="''" required>
+                      <el-form-item :for="''" required class="form-item--label-tip">
                         <template #label>
                           <span class="label-with-tip">
                             上级菜单
-                            <el-tooltip content="选择目录作为父级；菜单类型须挂在目录下。" placement="top">
-                              <el-icon class="label-tip-icon"><QuestionFilled /></el-icon>
+                            <el-tooltip
+                              content="一级无上级；调整层级请拖动左侧树节点。子级「菜单」须挂在「目录」下。"
+                              placement="top"
+                            >
+                              <span class="tip-trigger" tabindex="0" role="button" aria-label="上级菜单说明">
+                                <el-icon><QuestionFilled /></el-icon>
+                              </span>
                             </el-tooltip>
                           </span>
                         </template>
-                        <el-tree-select
-                          v-model="formModel.parentId"
-                          :data="parentPickerData"
-                          :props="{ value: 'id', label: 'menuName', children: 'children' }"
-                          check-strictly
-                          filterable
-                          class="w-full"
-                          :placeholder="isMenuTypeForm ? '选择目录作为父级' : '选择上级目录，根选一级'"
-                        />
+                        <el-input :model-value="parentMenuLabel" disabled placeholder="—" />
                       </el-form-item>
                     </el-col>
                   </el-row>
@@ -255,7 +265,7 @@ const isMenuTypeForm = computed(() => formModel.value.menuType === 'MENU')
             <div class="form-footer-bar">
               <div class="footer-actions">
                 <el-button
-                  v-if="panelMode === 'edit' && formModel.id && isCatalogForm && hasButton(CMN_BUTTON.DELETE)"
+                  v-if="canDeleteCatalog && hasButton(CMN_BUTTON.DELETE)"
                   type="danger"
                   plain
                   @click="onDelete"
@@ -270,7 +280,7 @@ const isMenuTypeForm = computed(() => formModel.value.menuType === 'MENU')
                   type="primary"
                   @click="submitForm"
                 >
-                  {{ panelMode === 'create' ? CMN_BUTTON_LABEL[CMN_BUTTON.ADD] : CMN_BUTTON_LABEL[CMN_BUTTON.EDIT] }}
+                  {{ panelMode === 'create' ? CMN_BUTTON_LABEL[CMN_BUTTON.ADD] : BTN_UI.SAVE }}
                 </el-button>
               </div>
             </div>
@@ -283,7 +293,7 @@ const isMenuTypeForm = computed(() => formModel.value.menuType === 'MENU')
                   <p class="empty-title">未选择菜单或未进入编辑</p>
                   <ol class="empty-steps">
                     <li>在左侧树中<strong>点击</strong>目录或菜单节点，右侧加载详情并可编辑</li>
-                    <li>表单「上级菜单」可将节点移到其他目录下；菜单类型须挂在目录下</li>
+                    <li>有编辑权限时，可在左侧树<strong>拖拽</strong>节点调整上级菜单</li>
                     <li>类型创建后不可修改；仅目录可删除</li>
                     <li>树底「+」：新增<strong>一级目录</strong>；悬停目录行「+」：在该目录下新增<strong>子目录</strong></li>
                     <li>仅<strong>目录</strong>可删除；有下级时须先处理子节点</li>
@@ -557,11 +567,32 @@ const isMenuTypeForm = computed(() => formModel.value.menuType === 'MENU')
   gap: 4px;
 }
 
-.label-tip-icon {
-  font-size: 14px;
-  color: var(--el-text-color-secondary);
+/** 带问号提示的 label：恢复 hover（全局 .el-form-item__label 为 pointer-events: none） */
+.menu-edit-form :deep(.form-item--label-tip .el-form-item__label) {
+  overflow: visible;
+  pointer-events: auto;
+}
+
+.tip-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
   cursor: help;
+  color: var(--el-text-color-secondary);
   outline: none;
+  pointer-events: auto;
+}
+
+.tip-trigger .el-icon {
+  font-size: 14px;
+}
+
+.tip-trigger:hover,
+.tip-trigger:focus-visible {
+  color: var(--el-color-primary);
 }
 
 .menu-edit-form--balanced :deep(.el-form-item) {
@@ -593,6 +624,14 @@ const isMenuTypeForm = computed(() => formModel.value.menuType === 'MENU')
   display: flex;
   align-items: center;
   min-width: 0;
+}
+
+.menu-tree :deep(.el-tree-node.is-dragging > .el-tree-node__content) {
+  cursor: grabbing;
+}
+
+.menu-tree :deep(.el-tree-node.is-drop-inner > .el-tree-node__content) {
+  background-color: var(--el-color-primary-light-9);
 }
 
 .tree-node-label--visible {

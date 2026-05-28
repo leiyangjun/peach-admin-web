@@ -180,7 +180,7 @@ function onNoVue3CronClose() {
 <template>
   <div class="vcrontab-field">
     <div class="vcrontab-field__row">
-      <el-radio-group v-model="mode" class="vcrontab-field__mode" size="small">
+      <el-radio-group v-model="mode" class="vcrontab-field__mode">
         <el-radio-button label="preset">常用</el-radio-button>
         <el-radio-button label="custom">自定义</el-radio-button>
       </el-radio-group>

@@ -1,0 +1,65 @@
+/**
+ * 标准管理端列表页布局：铺满 AdminLayout 内容区，表格区 flex 伸展，分页贴底右对齐。
+ * 用法：根节点加 page-list-page，表格外包 page-list-table-wrap，表格设 height="100%"。
+ */
+
+.page-list-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.page-list-page > .page-list-card.el-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-list-page > .page-list-card > .el-card__body {
+  padding: 0;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-list-page .page-list-toolbar {
+  flex-shrink: 0;
+}
+
+.page-list-page .page-list-table-wrap {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-list-page .page-list-table-wrap > .el-table {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+.page-list-page .page-list-table-wrap > .el-table .el-table__inner-wrapper {
+  height: 100%;
+}
+
+.page-list-page .page-list-table-wrap > .el-table.el-table--fit {
+  height: 100% !important;
+}
+
+.page-list-page .pager.page-list-pager {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 16px 16px;
+  border-top: 1px solid var(--el-border-color-lighter);
+  background-color: var(--el-fill-color-blank);
+}

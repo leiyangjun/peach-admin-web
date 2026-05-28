@@ -1,11 +1,12 @@
 /**
- * 经 peach-gateway 访问各微服务：URL 形如 `/{serviceId}{ADMIN}/...`。
+ * 经 peach-gateway 访问各微服务：URL 形如 `/peach-gateway/{serviceId}{ADMIN}/...`。
  * 禁止对 common-service 直连 8082 且携带 serviceId 前缀（下游只认 `{ADMIN}/...`）。
  */
 import httpGatewayDynamic from './httpGatewayDynamic'
 import { ADMIN_API_PATH_PREFIX } from '../config/adminApiPrefix'
 import {
   DEFAULT_GATEWAY_ORIGIN,
+  GATEWAY_PATH_PREFIX,
   resolveGatewayDynamicBaseUrl,
   resolveGatewayOrigin,
 } from '../config/gatewayOrigin'
@@ -17,7 +18,7 @@ export { DEFAULT_GATEWAY_ORIGIN, resolveGatewayDynamicBaseUrl, resolveGatewayOri
 
 /**
  * 构建经网关转发的服务路径（不含 origin），例如
- * `/peach-common-service/admin/apis/type/admin`。
+ * `/peach-gateway/peach-common-service/admin/apis/type/admin`。
  */
 export function buildGatewayServicePath(serviceId: string, suffix: string): string {
   const sid = serviceId.trim()
@@ -25,7 +26,7 @@ export function buildGatewayServicePath(serviceId: string, suffix: string): stri
     throw new Error('serviceId 不能为空')
   }
   const tail = suffix.startsWith('/') ? suffix : `/${suffix}`
-  return `/${encodeURIComponent(sid)}${ADMIN_API_PATH_PREFIX}${tail}`
+  return `${GATEWAY_PATH_PREFIX}/${encodeURIComponent(sid)}${ADMIN_API_PATH_PREFIX}${tail}`
 }
 
 /**

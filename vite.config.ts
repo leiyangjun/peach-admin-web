@@ -28,6 +28,10 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api-job/, JOB_SERVICE_PREFIX),
       },
+      '/peach-gateway': {
+        target: GATEWAY_TARGET,
+        changeOrigin: true,
+      },
       '^/peach-[^/]+(/.*)?$': {
         target: GATEWAY_TARGET,
         changeOrigin: true,

@@ -54,7 +54,7 @@ function userTypeLabel(t: string | undefined) {
 </script>
 
 <template>
-  <div class="user-page">
+  <div class="user-page page-list-page">
     <el-card shadow="never" class="page-list-card">
       <div class="page-list-toolbar">
         <el-form :inline="true" @submit.prevent>
@@ -77,7 +77,8 @@ function userTypeLabel(t: string | undefined) {
         </el-form>
       </div>
 
-      <el-table v-loading="loading" class="page-list-table" :data="tableRows" stripe>
+      <div class="page-list-table-wrap">
+        <el-table v-loading="loading" class="page-list-table" :data="tableRows" stripe height="100%">
         <el-table-column type="index" label="#" width="56" :index="(i: number) => (page - 1) * pageSize + i + 1" />
         <el-table-column prop="username" label="用户名" min-width="120" show-overflow-tooltip />
         <el-table-column prop="nickname" label="昵称" min-width="110" show-overflow-tooltip />
@@ -118,7 +119,8 @@ function userTypeLabel(t: string | undefined) {
             </span>
           </template>
         </el-table-column>
-      </el-table>
+        </el-table>
+      </div>
 
       <div class="pager page-list-pager">
         <el-pagination
@@ -224,17 +226,6 @@ function userTypeLabel(t: string | undefined) {
 </template>
 
 <style scoped>
-.user-page {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-/* 列表区单卡片：工具条与表头视觉同一色带，减少双层卡片与竖向空隙 */
-.page-list-card :deep(.el-card__body) {
-  padding: 0;
-}
-
 .page-list-toolbar {
   padding: 10px 16px 12px;
   border-bottom: 1px solid var(--el-border-color-lighter);
@@ -256,20 +247,6 @@ function userTypeLabel(t: string | undefined) {
 
 .right-btn {
   margin-left: auto;
-}
-
-/* 与工具条顶对齐：去掉整表圆角带来的「分层」感，仅保留下圆角 */
-.page-list-table :deep(.el-table) {
-  border-radius: 0 0 8px 8px;
-}
-
-.pager {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.page-list-pager {
-  padding: 14px 16px 16px;
 }
 
 .user-table-ops {

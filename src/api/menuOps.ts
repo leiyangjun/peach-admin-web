@@ -25,20 +25,24 @@ export async function fetchMenuOpsDetail(id: number | string): Promise<MenuOpsDe
   return body.data
 }
 
-export async function createMenuOpsCatalog(payload: MenuOpsSaveVO): Promise<MenuOpsDetailVO> {
-  const { data: body } = await httpCommon.post<ApiEnvelope<MenuOpsDetailVO>>(`${BASE}/ops`, payload)
-  if (!isPeachSuccess(body.code) || body.data == null) {
+/** 后端 POST/PATCH 运维接口返回 ApiResult<Void>，成功时 data 常为 null */
+export async function createMenuOpsCatalog(payload: MenuOpsSaveVO): Promise<MenuOpsDetailVO | null> {
+  const { data: body } = await httpCommon.post<ApiEnvelope<MenuOpsDetailVO | null>>(`${BASE}/ops`, payload)
+  if (!isPeachSuccess(body.code)) {
     throw new Error(body.msg || '新建菜单失败')
   }
-  return body.data
+  return body.data ?? null
 }
 
 export async function patchMenuOps(id: number | string, payload: MenuOpsPatchVO): Promise<MenuOpsDetailVO> {
-  const { data: body } = await httpCommon.patch<ApiEnvelope<MenuOpsDetailVO>>(`${BASE}/ops/${id}`, payload)
-  if (!isPeachSuccess(body.code) || body.data == null) {
+  const { data: body } = await httpCommon.patch<ApiEnvelope<MenuOpsDetailVO | null>>(`${BASE}/ops/${id}`, payload)
+  if (!isPeachSuccess(body.code)) {
     throw new Error(body.msg || '保存菜单失败')
   }
-  return body.data
+  if (body.data != null) {
+    return body.data
+  }
+  return fetchMenuOpsDetail(id)
 }
 
 /** 物理删除运维目录（仅 CATALOG、无子节点） */

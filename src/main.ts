@@ -12,6 +12,7 @@ import { useAuthStore } from './stores/auth'
 import { resetFullUserSession } from './utils/userSessionReset'
 import { registerSessionExpiredHandler } from './utils/sessionExpired'
 import './styles/global.css'
+import './styles/page-list-layout.css'
 
 const app = createApp(App)
 const pinia = createPinia()

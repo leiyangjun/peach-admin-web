@@ -31,3 +31,10 @@ body {
 .el-form-item__label {
   pointer-events: none;
 }
+
+/** 成功提示使用 Element Plus 成功色，避免与错误样式混淆 */
+.el-message.el-message--success {
+  --el-message-bg-color: var(--el-color-success-light-9);
+  --el-message-border-color: var(--el-color-success-light-5);
+  --el-message-text-color: var(--el-color-success);
+}

@@ -117,7 +117,7 @@ export function useMenuController(options?: UseMenuControllerOptions) {
   const parentMenuLabel = computed(() => {
     const pid = formModel.value.parentId ?? 0
     if (Number(pid) === 0) {
-      return formModel.value.menuType === MENU_TYPE_MENU ? '（须为目录子级）' : '（一级菜单）'
+      return '（一级菜单，类型可为目录或菜单）'
     }
     return findMenuNameById(treeData.value, pid) ?? `ID: ${pid}`
   })
@@ -161,7 +161,7 @@ export function useMenuController(options?: UseMenuControllerOptions) {
 
     if (dragData.menuType === MENU_TYPE_MENU) {
       if (Number(newParentId) === 0) {
-        return false
+        return true
       }
       const parentNode = findMenuNodeById(treeData.value, newParentId)
       if (!parentNode || parentNode.menuType !== MENU_TYPE_CATALOG) {
@@ -425,10 +425,23 @@ export function useMenuController(options?: UseMenuControllerOptions) {
       return false
     }
     if (m.menuType === MENU_TYPE_MENU) {
-      const pid = m.parentId
-      if (pid === undefined || pid === null || pid === '' || Number(pid) === 0) {
-        ElMessage.warning('菜单类型须选择目录作为上级')
-        return false
+      const pidNum = Number(m.parentId ?? 0)
+      if (pidNum !== 0) {
+        const parentNode = findMenuNodeById(treeData.value, m.parentId!)
+        if (!parentNode || parentNode.menuType !== MENU_TYPE_CATALOG) {
+          ElMessage.warning('子级「菜单」须挂在「目录」下；一级菜单可直接为目录或菜单')
+          return false
+        }
+      }
+    }
+    if (m.menuType === MENU_TYPE_CATALOG) {
+      const pidNum = Number(m.parentId ?? 0)
+      if (pidNum !== 0) {
+        const parentNode = findMenuNodeById(treeData.value, m.parentId!)
+        if (!parentNode || parentNode.menuType !== MENU_TYPE_CATALOG) {
+          ElMessage.warning('子级「目录」须挂在「目录」下')
+          return false
+        }
       }
     }
     return true

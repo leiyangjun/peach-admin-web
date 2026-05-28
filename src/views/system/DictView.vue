@@ -190,7 +190,7 @@ const onSaveDict = async () => {
 </script>
 
 <template>
-  <div class="dict-page">
+  <div class="dict-page page-list-page">
     <el-card shadow="never" class="page-list-card">
       <div class="page-list-toolbar">
         <el-form :inline="true" @submit.prevent>
@@ -219,14 +219,16 @@ const onSaveDict = async () => {
         </el-form>
       </div>
 
-      <el-table
-        v-loading="loading"
-        class="page-list-table dict-main-table"
-        size="small"
-        :data="displayTableRows"
-        :span-method="dictTableSpanMethod"
-        stripe
-      >
+      <div class="page-list-table-wrap">
+        <el-table
+          v-loading="loading"
+          class="page-list-table dict-main-table"
+          size="small"
+          :data="displayTableRows"
+          :span-method="dictTableSpanMethod"
+          stripe
+          height="100%"
+        >
         <template #empty>
           <el-empty
             :description="
@@ -282,7 +284,8 @@ const onSaveDict = async () => {
             </span>
           </template>
         </el-table-column>
-      </el-table>
+        </el-table>
+      </div>
 
       <div class="pager page-list-pager">
         <el-pagination
@@ -410,24 +413,6 @@ const onSaveDict = async () => {
 </template>
 
 <style scoped>
-/* 列表区：flex 链 + min-height:0，避免空表 / el-empty 触发的最小内容高度把 .content 顶出纵向滚动条；仅必要时由表格内部滚动 */
-.dict-page {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.page-list-card {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
 .dict-type-cell {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   font-size: 13px;
@@ -452,18 +437,7 @@ const onSaveDict = async () => {
   background-color: #f3eef8;
 }
 
-/* 列表区单卡片：工具条与表头视觉同一色带，减少双层卡片与竖向空隙 */
-.page-list-card :deep(.el-card__body) {
-  padding: 0;
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
 .page-list-toolbar {
-  flex-shrink: 0;
   padding: 10px 16px 12px;
   border-bottom: 1px solid var(--el-border-color-lighter);
   background-color: var(--el-table-header-bg-color);
@@ -486,20 +460,6 @@ const onSaveDict = async () => {
   margin-left: auto;
 }
 
-/* 与工具条顶对齐：去掉整表圆角带来的「分层」感，仅保留下圆角 */
-.page-list-table {
-  flex: 1;
-  min-height: 0;
-  min-width: 0;
-  width: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-.page-list-table :deep(.el-table) {
-  border-radius: 0 0 8px 8px;
-}
-
 /* 主列表略收紧行高与字号，同屏可见更多行 */
 .dict-main-table :deep(.el-table__cell) {
   padding-top: 4px;
@@ -511,16 +471,6 @@ const onSaveDict = async () => {
   padding-right: 8px;
   font-size: 13px;
   line-height: 1.35;
-}
-
-.pager {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.page-list-pager {
-  flex-shrink: 0;
-  padding: 14px 16px 16px;
 }
 
 .dict-table-ops {

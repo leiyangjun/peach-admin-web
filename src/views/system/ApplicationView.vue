@@ -54,7 +54,7 @@ const onSaveApp = async () => {
 </script>
 
 <template>
-  <div class="app-page">
+  <div class="app-page page-list-page">
     <el-card shadow="never" class="page-list-card">
       <div class="page-list-toolbar">
         <el-form :inline="true" @submit.prevent>
@@ -91,7 +91,15 @@ const onSaveApp = async () => {
         </el-form>
       </div>
 
-      <el-table v-loading="loading" class="page-list-table app-main-table" size="small" :data="tableRows" stripe>
+      <div class="page-list-table-wrap">
+        <el-table
+          v-loading="loading"
+          class="page-list-table app-main-table"
+          size="small"
+          :data="tableRows"
+          stripe
+          height="100%"
+        >
         <template #empty>
           <el-empty
             :description="
@@ -128,7 +136,8 @@ const onSaveApp = async () => {
             </span>
           </template>
         </el-table-column>
-      </el-table>
+        </el-table>
+      </div>
 
       <div class="pager page-list-pager">
         <el-pagination
@@ -200,39 +209,12 @@ const onSaveApp = async () => {
 </template>
 
 <style scoped>
-.app-page {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.page-list-card {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
 .app-code-cell {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   font-size: 13px;
 }
 
-.page-list-card :deep(.el-card__body) {
-  padding: 0;
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
 .page-list-toolbar {
-  flex-shrink: 0;
   padding: 10px 16px 12px;
   border-bottom: 1px solid var(--el-border-color-lighter);
   background-color: var(--el-table-header-bg-color);
@@ -255,19 +237,6 @@ const onSaveApp = async () => {
   margin-left: auto;
 }
 
-.page-list-table {
-  flex: 1;
-  min-height: 0;
-  min-width: 0;
-  width: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-.page-list-table :deep(.el-table) {
-  border-radius: 0 0 8px 8px;
-}
-
 .app-main-table :deep(.el-table__cell) {
   padding-top: 4px;
   padding-bottom: 4px;
@@ -278,16 +247,6 @@ const onSaveApp = async () => {
   padding-right: 8px;
   font-size: 13px;
   line-height: 1.35;
-}
-
-.pager {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.page-list-pager {
-  flex-shrink: 0;
-  padding: 14px 16px 16px;
 }
 
 .app-table-ops {

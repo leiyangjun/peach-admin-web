@@ -252,7 +252,7 @@ watch(
                           <span class="label-with-tip">
                             类型
                             <el-tooltip
-                              content="「目录」用于侧边栏分组，不绑定页面路由；「菜单」为可访问页面，须配置路由并可绑定按钮与 API。"
+                              content="一级可为「目录」或「菜单」：目录用于分组，菜单为可访问页面。非一级时，「菜单」须挂在「目录」下，并配置路由与按钮。"
                               placement="top"
                             >
                               <span class="tip-trigger" tabindex="0" role="button" aria-label="菜单类型说明">
@@ -302,7 +302,7 @@ watch(
                           <span class="label-with-tip">
                             上级菜单
                             <el-tooltip
-                              content="如需调整菜单层级，请拖动右侧对应菜单到目标位置即可！"
+                              content="一级菜单无上级（parentId=0）；调整层级请拖动左侧树节点。子级「菜单」仅可挂在「目录」下。"
                               placement="top"
                             >
                               <span class="tip-trigger" tabindex="0" role="button" aria-label="上级菜单说明">

@@ -130,7 +130,7 @@ function userDisplayRealName(row: UserMgmtVO): string {
 </script>
 
 <template>
-  <div class="role-page">
+  <div class="role-page page-list-page">
     <el-card shadow="never" class="page-list-card">
       <div class="page-list-toolbar">
         <el-form :inline="true" @submit.prevent>
@@ -153,7 +153,8 @@ function userDisplayRealName(row: UserMgmtVO): string {
         </el-form>
       </div>
 
-      <el-table v-loading="loading" class="page-list-table" :data="tableRows" stripe>
+      <div class="page-list-table-wrap">
+        <el-table v-loading="loading" class="page-list-table" :data="tableRows" stripe height="100%">
         <el-table-column type="index" label="#" width="56" :index="(i: number) => (page - 1) * pageSize + i + 1" />
         <el-table-column prop="roleCode" label="角色编码" min-width="140" show-overflow-tooltip />
         <el-table-column prop="roleName" label="角色名称" min-width="140" show-overflow-tooltip />
@@ -176,7 +177,8 @@ function userDisplayRealName(row: UserMgmtVO): string {
             </span>
           </template>
         </el-table-column>
-      </el-table>
+        </el-table>
+      </div>
 
       <div class="pager page-list-pager">
         <el-pagination
@@ -384,16 +386,6 @@ function userDisplayRealName(row: UserMgmtVO): string {
 </template>
 
 <style scoped>
-.role-page {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.page-list-card :deep(.el-card__body) {
-  padding: 0;
-}
-
 .page-list-toolbar {
   padding: 10px 16px 12px;
   border-bottom: 1px solid var(--el-border-color-lighter);
@@ -415,19 +407,6 @@ function userDisplayRealName(row: UserMgmtVO): string {
 
 .right-btn {
   margin-left: auto;
-}
-
-.page-list-table :deep(.el-table) {
-  border-radius: 0 0 8px 8px;
-}
-
-.pager {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.page-list-pager {
-  padding: 14px 16px 16px;
 }
 
 .role-table-ops {
