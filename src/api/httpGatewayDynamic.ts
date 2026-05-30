@@ -7,7 +7,7 @@ import { setupAuthInterceptors } from './setupAuthInterceptors'
 const jsonParser = JSONbigint({ storeAsString: true })
 
 /**
- * 经网关访问各微服务（URL 以 `/peach-gateway/{serviceId}` 开头）。
+ * 经网关访问各微服务（URL 以 `/{serviceId}/admin/...` 开头，见 gateway.buildGatewayServicePath）。
  * baseURL 为 {@link resolveGatewayDynamicBaseUrl}，开发默认 `http://127.0.0.1:8090`。
  */
 const httpGatewayDynamic = axios.create({

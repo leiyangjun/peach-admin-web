@@ -5,6 +5,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { PEACH_COMMON_SERVICE } from '../config/gatewayOrigin'
 import type { ApiMetaDTO } from '../models/permission'
 import type { ServiceVO } from '../models/discovery'
+import { DEFAULT_PAGE_SIZE } from '../utils/pagination'
 import { apiRowKeyFn } from './useAdminApiPicker'
 import { useGatewayAdminApiFetch } from './useGatewayAdminApiFetch'
 
@@ -38,7 +39,7 @@ export function useApiResourceShuttle(options: UseApiResourceShuttleOptions) {
 
   const rightList = ref<ApiMetaDTO[]>([])
   const leftPage = ref(1)
-  const leftPageSize = ref(10)
+  const leftPageSize = ref(DEFAULT_PAGE_SIZE)
 
   let keywordSearchTimer: ReturnType<typeof setTimeout> | null = null
 

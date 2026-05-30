@@ -17,6 +17,11 @@ import {
 import { fetchUserPage } from '../../api/user'
 import { isSessionExpiredError } from '../../utils/sessionExpired'
 import {
+  DEFAULT_PAGE_SIZE,
+  buildPageParams,
+  sliceRowsForPage,
+} from '../../utils/pagination'
+import {
   applyRoleMenuBindImplicitSelections,
   buildRoleMenuBindTreeFromRoleMenus,
   buildRoleMenuTreeSavePayload,
@@ -31,7 +36,7 @@ export type RoleDialogMode = 'create' | 'edit'
 export function useRoleController() {
   const keyword = ref('')
   const page = ref(1)
-  const pageSize = ref(10)
+  const pageSize = ref(DEFAULT_PAGE_SIZE)
   const total = ref(0)
   const loading = ref(false)
   const tableRows = ref<RoleMgmtVO[]>([])
@@ -48,7 +53,7 @@ export function useRoleController() {
   const bindPickerLoading = ref(false)
   const bindPickerRows = ref<UserMgmtVO[]>([])
   const bindPickerPage = ref(1)
-  const bindPickerPageSize = ref(10)
+  const bindPickerPageSize = ref(DEFAULT_PAGE_SIZE)
   const bindPickerTotal = ref(0)
   const bindPickerKeyword = ref('')
   /** 右侧已选用户（全量对象，提交时取 id） */
@@ -80,12 +85,12 @@ export function useRoleController() {
   const loadList = async () => {
     loading.value = true
     try {
+      const query = buildPageParams(page.value, pageSize.value)
       const data = await fetchRolePage({
-        pageNum: page.value,
-        pageSize: pageSize.value,
+        ...query,
         searchValue: keyword.value.trim() || undefined,
       })
-      tableRows.value = data.list ?? []
+      tableRows.value = sliceRowsForPage(data.list ?? [], query.pageNum, query.pageSize)
       total.value = data.total ?? 0
     } catch (e) {
       if (!isSessionExpiredError(e)) {
@@ -238,13 +243,13 @@ export function useRoleController() {
     }
     bindPickerLoading.value = true
     try {
+      const query = buildPageParams(bindPickerPage.value, bindPickerPageSize.value)
       const data = await fetchUserPage({
-        pageNum: bindPickerPage.value,
-        pageSize: bindPickerPageSize.value,
+        ...query,
         searchValue: bindPickerKeyword.value.trim() || undefined,
         userType: 'system',
       })
-      bindPickerRows.value = data.list ?? []
+      bindPickerRows.value = sliceRowsForPage(data.list ?? [], query.pageNum, query.pageSize)
       bindPickerTotal.value = data.total ?? 0
     } catch (e) {
       if (!isSessionExpiredError(e)) {

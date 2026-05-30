@@ -10,6 +10,11 @@ import {
   toggleUnauthApiValid,
 } from '../../api/unauthApi'
 import { isSessionExpiredError } from '../../utils/sessionExpired'
+import {
+  DEFAULT_PAGE_SIZE,
+  buildPageParams,
+  sliceRowsForPage,
+} from '../../utils/pagination'
 import type { UnauthApiPageQuery, UnauthApiVO } from '../../models/unauthApi'
 import { isUnauthDeletable, isUnauthEnabled, UNAUTH_API_LIST_PATH } from '../../models/unauthApi'
 import { useUnauthApiEditDrawer } from './useUnauthApiEditController'
@@ -18,23 +23,28 @@ export { UNAUTH_API_LIST_PATH }
 
 export function useUnauthApiController() {
   const keyword = ref('')
+  const accessTypeFilter = ref<number | undefined>(undefined)
   const validFilter = ref<number | undefined>(undefined)
   const page = ref(1)
-  const pageSize = ref(10)
+  const pageSize = ref(DEFAULT_PAGE_SIZE)
   const total = ref(0)
   const loading = ref(false)
   const tableRows = ref<UnauthApiVO[]>([])
+  /** 忽略过期的分页响应，避免并发请求乱序覆盖列表 */
+  let listRequestSeq = 0
 
   const buildPageQuery = (): UnauthApiPageQuery => {
     const base: UnauthApiPageQuery = {
-      pageNum: page.value,
-      pageSize: pageSize.value,
+      ...buildPageParams(page.value, pageSize.value),
       sortName: 'editTime',
       sortType: 'desc',
     }
     const kw = keyword.value.trim()
     if (kw) {
       base.searchValue = kw
+    }
+    if (accessTypeFilter.value !== undefined && accessTypeFilter.value !== null) {
+      base.accessType = accessTypeFilter.value as UnauthApiPageQuery['accessType']
     }
     if (validFilter.value !== undefined && validFilter.value !== null) {
       base.valid = validFilter.value
@@ -43,17 +53,27 @@ export function useUnauthApiController() {
   }
 
   const loadList = async () => {
+    const query = buildPageQuery()
+    const seq = ++listRequestSeq
     loading.value = true
     try {
-      const data = await fetchUnauthApiPage(buildPageQuery())
-      tableRows.value = data.list ?? []
+      const data = await fetchUnauthApiPage(query)
+      if (seq !== listRequestSeq) {
+        return
+      }
+      tableRows.value = sliceRowsForPage(data.list ?? [], query.pageNum, query.pageSize)
       total.value = data.total ?? 0
     } catch (e) {
+      if (seq !== listRequestSeq) {
+        return
+      }
       if (!isSessionExpiredError(e)) {
         ElMessage.error(e instanceof Error ? e.message : '加载列表失败')
       }
     } finally {
-      loading.value = false
+      if (seq === listRequestSeq) {
+        loading.value = false
+      }
     }
   }
 
@@ -61,7 +81,7 @@ export function useUnauthApiController() {
     void loadList()
   })
 
-  watch([page, pageSize, validFilter], () => {
+  watch([page, pageSize, accessTypeFilter, validFilter], () => {
     void loadList()
   }, { immediate: true })
 
@@ -72,6 +92,7 @@ export function useUnauthApiController() {
 
   const onReset = () => {
     keyword.value = ''
+    accessTypeFilter.value = undefined
     validFilter.value = undefined
     page.value = 1
     void loadList()
@@ -116,6 +137,7 @@ export function useUnauthApiController() {
 
   return {
     keyword,
+    accessTypeFilter,
     validFilter,
     page,
     pageSize,

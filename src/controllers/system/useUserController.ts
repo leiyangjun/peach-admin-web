@@ -14,6 +14,11 @@ import {
   toggleUserValid,
 } from '../../api/user'
 import { isSessionExpiredError } from '../../utils/sessionExpired'
+import {
+  DEFAULT_PAGE_SIZE,
+  buildPageParams,
+  sliceRowsForPage,
+} from '../../utils/pagination'
 import type { UserMgmtVO } from '../../models/userMgmt'
 
 const SYSTEM = 'system'
@@ -23,7 +28,7 @@ export type UserDialogMode = 'view' | 'create' | 'edit'
 export function useUserController() {
   const keyword = ref('')
   const page = ref(1)
-  const pageSize = ref(10)
+  const pageSize = ref(DEFAULT_PAGE_SIZE)
   const total = ref(0)
   const loading = ref(false)
   const tableRows = ref<UserMgmtVO[]>([])
@@ -53,12 +58,12 @@ export function useUserController() {
   const loadList = async () => {
     loading.value = true
     try {
+      const query = buildPageParams(page.value, pageSize.value)
       const data = await fetchUserPage({
-        pageNum: page.value,
-        pageSize: pageSize.value,
+        ...query,
         searchValue: keyword.value.trim() || undefined,
       })
-      tableRows.value = data.list ?? []
+      tableRows.value = sliceRowsForPage(data.list ?? [], query.pageNum, query.pageSize)
       total.value = data.total ?? 0
     } catch (e) {
       if (!isSessionExpiredError(e)) {

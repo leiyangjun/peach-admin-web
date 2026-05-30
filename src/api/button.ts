@@ -5,6 +5,7 @@
 
 import httpCommon from './httpCommon'
 import { isPeachSuccess } from '../utils/apiResult'
+import { normalizePageNum, normalizePageSize } from '../utils/pagination'
 import type { ApiEnvelope } from '../models/auth'
 import type { ButtonDictVO } from '../models/permission'
 
@@ -36,10 +37,12 @@ function normalizeButtonRow(row: ButtonDictVO): ButtonDictVO {
 
 /** 条件分页查询按钮字典；关键字对名称、编码模糊匹配 */
 export async function fetchButtonPage(query: ButtonPageQuery): Promise<PageInfoButton> {
+  const pageNum = normalizePageNum(query.pageNum)
+  const pageSize = normalizePageSize(query.pageSize)
   const { data: body } = await httpCommon.get<ApiEnvelope<PageInfoButton>>(`${BASE}/page`, {
     params: {
-      pageNum: query.pageNum,
-      pageSize: query.pageSize,
+      pageNum,
+      pageSize,
       searchValue: query.searchValue?.trim() || undefined,
       sortName: query.sortName,
       sortType: query.sortType,

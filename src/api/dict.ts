@@ -5,6 +5,7 @@
 
 import httpCommon from './httpCommon'
 import { isPeachSuccess } from '../utils/apiResult'
+import { normalizePageNum, normalizePageSize } from '../utils/pagination'
 import type { ApiEnvelope } from '../models/auth'
 import type { DictMgmtVO, DictPageQuery } from '../models/dictMgmt'
 
@@ -20,10 +21,12 @@ export interface PageInfoDict {
 
 /** 分页查询码表；关键字对字典类型、标签、存储值 OR 模糊匹配 */
 export async function fetchDictPage(query: DictPageQuery): Promise<PageInfoDict> {
+  const pageNum = normalizePageNum(query.pageNum)
+  const pageSize = normalizePageSize(query.pageSize)
   const { data: body } = await httpCommon.get<ApiEnvelope<PageInfoDict>>(`${BASE}/page`, {
     params: {
-      pageNum: query.pageNum,
-      pageSize: query.pageSize,
+      pageNum,
+      pageSize,
       searchValue: query.searchValue?.trim() || undefined,
       status:
         query.status !== undefined && query.status !== ''

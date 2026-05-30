@@ -2,19 +2,22 @@
 /**
  * 网关免鉴权 API 列表 + 右侧抽屉新建/编辑
  */
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
+import type { TableInstance } from 'element-plus'
 import { Delete, Edit, MoreFilled, Plus } from '@element-plus/icons-vue'
 import type { FormInstance } from 'element-plus'
 import ApiResourceShuttleDialog from '../../components/ApiResourceShuttleDialog.vue'
 import { BTN_UI, CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
 import { useButtonPermission } from '../../composables/useButtonPermission'
 import { useUnauthApiController } from '../../controllers/system/useUnauthApiController'
+import { UNAUTH_ACCESS_TYPE_OPTIONS, unauthAccessTypeLabel } from '../../models/unauthApi'
 import { formatDateTime } from '../../utils/dateTime'
 
 const { hasButton } = useButtonPermission()
 
 const {
   keyword,
+  accessTypeFilter,
   validFilter,
   page,
   pageSize,
@@ -55,6 +58,17 @@ function bindFormRef(el: unknown) {
 const apiPathPlaceholder = computed(() =>
   isInternal.value ? '点击右侧选择管理端 API' : '如 /legacy-app/callback/**',
 )
+
+const tableRef = ref<TableInstance>()
+
+/** 跨页连续序号；使用 script 中 ref.value，避免模板闭包与分页状态不同步 */
+function tableRowIndex(rowIndex: number): number {
+  return (page.value - 1) * pageSize.value + rowIndex + 1
+}
+
+watch([page, pageSize], () => {
+  tableRef.value?.setScrollTop(0)
+})
 </script>
 
 <template>
@@ -70,6 +84,16 @@ const apiPathPlaceholder = computed(() =>
               style="width: 260px"
               @keyup.enter="onSearch"
             />
+          </el-form-item>
+          <el-form-item label="访问类型">
+            <el-select v-model="accessTypeFilter" clearable placeholder="全部" style="width: 160px">
+              <el-option
+                v-for="opt in UNAUTH_ACCESS_TYPE_OPTIONS"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
           </el-form-item>
           <el-form-item label="状态">
             <el-select v-model="validFilter" clearable placeholder="全部" style="width: 110px">
@@ -93,6 +117,7 @@ const apiPathPlaceholder = computed(() =>
 
       <div class="page-list-table-wrap">
         <el-table
+          ref="tableRef"
           v-loading="loading"
           class="page-list-table unauth-api-main-table"
           size="small"
@@ -104,7 +129,17 @@ const apiPathPlaceholder = computed(() =>
           <template #empty>
             <el-empty description="暂无免鉴权 API，可点击新增进行配置" />
           </template>
+          <el-table-column label="#" width="56" align="center">
+            <template #default="{ $index }">
+              {{ tableRowIndex($index) }}
+            </template>
+          </el-table-column>
           <el-table-column prop="method" label="METHOD" width="72" align="center" />
+          <el-table-column label="访问类型" width="140" align="center">
+            <template #default="{ row }">
+              {{ unauthAccessTypeLabel(row.accessType) }}
+            </template>
+          </el-table-column>
           <el-table-column prop="finalPath" label="PATH" min-width="200" show-overflow-tooltip />
           <el-table-column prop="summary" label="备注" width="160" show-overflow-tooltip />
           <el-table-column label="更新时间" width="168" align="center">
@@ -153,6 +188,7 @@ const apiPathPlaceholder = computed(() =>
           layout="total, sizes, prev, pager, next, jumper"
           :total="total"
           :page-sizes="[10, 20, 50]"
+          :default-page-size="10"
         />
       </div>
     </el-card>
@@ -212,6 +248,18 @@ const apiPathPlaceholder = computed(() =>
                   />
                 </template>
               </el-input>
+            </el-form-item>
+
+            <el-form-item label="访问类型">
+              <el-radio-group v-model="form.accessType">
+                <el-radio
+                  v-for="opt in UNAUTH_ACCESS_TYPE_OPTIONS"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </el-radio>
+              </el-radio-group>
             </el-form-item>
 
             <el-form-item label="启用">

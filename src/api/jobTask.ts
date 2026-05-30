@@ -3,6 +3,7 @@
  */
 import httpJob from './httpJob'
 import { isPeachSuccess } from '../utils/apiResult'
+import { normalizePageNum, normalizePageSize } from '../utils/pagination'
 import type { ApiEnvelope } from '../models/auth'
 import type { JobLogVO, JobPageQuery, JobTaskSaveDTO, JobTaskVO } from '../models/jobTask'
 
@@ -18,10 +19,12 @@ export interface PageInfoJobTask {
 
 /** 分页查询定时任务 */
 export async function fetchJobTaskPage(query: JobPageQuery): Promise<PageInfoJobTask> {
+  const pageNum = normalizePageNum(query.pageNum)
+  const pageSize = normalizePageSize(query.pageSize)
   const { data: body } = await httpJob.get<ApiEnvelope<PageInfoJobTask>>(`${TASK_BASE}/page`, {
     params: {
-      pageNum: query.pageNum,
-      pageSize: query.pageSize,
+      pageNum,
+      pageSize,
       jobName: query.jobName?.trim() || undefined,
       jobDescription: query.jobDescription?.trim() || undefined,
       searchValue: query.searchValue?.trim() || undefined,

@@ -5,6 +5,7 @@
 
 import httpCommon from './httpCommon'
 import { isPeachSuccess } from '../utils/apiResult'
+import { normalizePageNum, normalizePageSize } from '../utils/pagination'
 import type { ApiEnvelope } from '../models/auth'
 import type { ResetPwdDTO, UserMgmtVO, UserPageQuery } from '../models/userMgmt'
 
@@ -20,10 +21,12 @@ export interface PageInfoUser {
 
 /** 分页查询全部用户（system + app），关键字匹配用户名/昵称/手机号 */
 export async function fetchUserPage(query: UserPageQuery): Promise<PageInfoUser> {
+  const pageNum = normalizePageNum(query.pageNum)
+  const pageSize = normalizePageSize(query.pageSize)
   const { data: body } = await httpCommon.get<ApiEnvelope<PageInfoUser>>(`${BASE}/page`, {
     params: {
-      pageNum: query.pageNum,
-      pageSize: query.pageSize,
+      pageNum,
+      pageSize,
       searchValue: query.searchValue?.trim() || undefined,
       userType: query.userType || undefined,
       valid: query.valid !== undefined && query.valid !== '' ? query.valid : undefined,

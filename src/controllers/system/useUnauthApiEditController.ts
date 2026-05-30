@@ -10,7 +10,7 @@ import { BTN_UI, CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
 import { useButtonPermission } from '../../composables/useButtonPermission'
 import type { ApiMetaDTO } from '../../models/permission'
 import type { ServiceVO } from '../../models/discovery'
-import type { UnauthApiType, UnauthApiVO } from '../../models/unauthApi'
+import type { UnauthAccessType, UnauthApiType, UnauthApiVO } from '../../models/unauthApi'
 import { UNAUTH_API_LIST_PATH } from '../../models/unauthApi'
 
 const HTTP_METHOD_OPTIONS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const
@@ -64,6 +64,7 @@ export function useUnauthApiEditDrawer(onSaved?: () => void) {
   const form = reactive({
     id: undefined as string | undefined,
     apiType: 'INTERNAL' as UnauthApiType,
+    accessType: 1 as UnauthAccessType,
     method: '',
     summary: '',
     enabled: true,
@@ -96,6 +97,7 @@ export function useUnauthApiEditDrawer(onSaved?: () => void) {
   function resetForm() {
     form.id = undefined
     form.apiType = 'INTERNAL'
+    form.accessType = 1
     form.method = ''
     form.summary = ''
     form.enabled = true
@@ -168,6 +170,8 @@ export function useUnauthApiEditDrawer(onSaved?: () => void) {
     form.method = isAllowedHttpMethod(loadedMethod) ? loadedMethod : ''
     form.summary = row.summary ?? ''
     form.enabled = row.valid === 1
+    const at = Number(row.accessType)
+    form.accessType = at === 2 ? 2 : 1
     if (isExternalRow(row)) {
       clearInternalBindingOnly()
       form.finalPath = (row.finalPath ?? '').trim()
@@ -300,6 +304,7 @@ export function useUnauthApiEditDrawer(onSaved?: () => void) {
       summary: form.summary.trim() || undefined,
       valid: form.enabled ? 1 : 0,
       isExternal: form.apiType === 'EXTERNAL' ? 1 : 0,
+      accessType: form.accessType,
     }
     if (form.apiType === 'EXTERNAL') {
       return {

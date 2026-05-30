@@ -6,10 +6,7 @@ import { ADMIN_API_PATH_PREFIX } from './adminApiPrefix'
 /** 本地网关默认端口 */
 export const DEFAULT_GATEWAY_ORIGIN = 'http://127.0.0.1:8090'
 
-/** 经网关统一入口前缀（与 peach-gateway GatewayPublicPathConstants 一致） */
-export const GATEWAY_PATH_PREFIX = '/peach-gateway'
-
-/** Nacos 注册名 / 网关路由前缀（与 vite.config、网关 RewritePath 一致） */
+/** Nacos 注册名 / 网关路由首段（与 vite.config、网关路由 serviceId 一致） */
 export const PEACH_AUTH_SERVICE = 'peach-auth-service'
 export const PEACH_COMMON_SERVICE = 'peach-common-service'
 export const PEACH_JOB_SERVICE = 'peach-job-service'
@@ -49,7 +46,7 @@ export function buildGatewayServiceBaseUrl(serviceId: string): string {
   if (!sid) {
     throw new Error('serviceId 不能为空')
   }
-  const servicePath = `${GATEWAY_PATH_PREFIX}/${sid}${ADMIN_API_PATH_PREFIX}`
+  const servicePath = `/${sid}${ADMIN_API_PATH_PREFIX}`
   const origin = resolveGatewayOrigin()
   return origin ? `${origin}${servicePath}` : servicePath
 }

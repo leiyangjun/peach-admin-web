@@ -13,6 +13,11 @@ import {
 } from '../../api/application'
 import { fetchValidDictByType } from '../../api/dict'
 import { isSessionExpiredError } from '../../utils/sessionExpired'
+import {
+  DEFAULT_PAGE_SIZE,
+  buildPageParams,
+  sliceRowsForPage,
+} from '../../utils/pagination'
 import type { DictMgmtVO } from '../../models/dictMgmt'
 import {
   APP_TYPE_DICT_TYPE,
@@ -43,7 +48,7 @@ export function useApplicationController() {
   })
 
   const page = ref(1)
-  const pageSize = ref(10)
+  const pageSize = ref(DEFAULT_PAGE_SIZE)
   const total = ref(0)
   const loading = ref(false)
   const tableRows = ref<ApplicationMgmtVO[]>([])
@@ -82,13 +87,13 @@ export function useApplicationController() {
   const loadList = async () => {
     loading.value = true
     try {
+      const query = buildPageParams(page.value, pageSize.value)
       const data = await fetchApplicationPage({
-        pageNum: page.value,
-        pageSize: pageSize.value,
+        ...query,
         searchValue: keyword.value.trim() || undefined,
         appType: appTypeFilter.value?.trim() || undefined,
       })
-      tableRows.value = data.list ?? []
+      tableRows.value = sliceRowsForPage(data.list ?? [], query.pageNum, query.pageSize)
       total.value = data.total ?? 0
     } catch (e) {
       if (!isSessionExpiredError(e)) {

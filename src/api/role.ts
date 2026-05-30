@@ -6,6 +6,7 @@
 import httpCommon from './httpCommon'
 import { normalizeMenuTreeRoleRoots } from '../utils/roleMenuBindRules'
 import { isPeachSuccess } from '../utils/apiResult'
+import { normalizePageNum, normalizePageSize } from '../utils/pagination'
 import type { ApiEnvelope } from '../models/auth'
 import type { MenuTreeUserVO } from '../models/menuMgmt'
 import type { MenuButtonRoleVO, MenuTreeRoleVO, RoleMgmtVO, RolePageQuery, RoleUserVO } from '../models/roleMgmt'
@@ -35,10 +36,12 @@ export interface PageInfoRole {
 
 /** 分页查询角色；关键字匹配角色编码、名称 */
 export async function fetchRolePage(query: RolePageQuery): Promise<PageInfoRole> {
+  const pageNum = normalizePageNum(query.pageNum)
+  const pageSize = normalizePageSize(query.pageSize)
   const { data: body } = await httpCommon.get<ApiEnvelope<PageInfoRole>>(`${BASE}/page`, {
     params: {
-      pageNum: query.pageNum,
-      pageSize: query.pageSize,
+      pageNum,
+      pageSize,
       searchValue: query.searchValue?.trim() || undefined,
       sortName: query.sortName,
       sortType: query.sortType,

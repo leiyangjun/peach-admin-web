@@ -5,6 +5,7 @@
 
 import httpCommon from './httpCommon'
 import { isPeachSuccess } from '../utils/apiResult'
+import { normalizePageNum, normalizePageSize } from '../utils/pagination'
 import type { ApiEnvelope } from '../models/auth'
 import type { ApplicationMgmtVO, ApplicationPageQuery } from '../models/applicationMgmt'
 
@@ -20,10 +21,12 @@ export interface PageInfoApplication {
 
 /** 分页查询；关键字对 app_name、app_code、app_desc OR 模糊匹配 */
 export async function fetchApplicationPage(query: ApplicationPageQuery): Promise<PageInfoApplication> {
+  const pageNum = normalizePageNum(query.pageNum)
+  const pageSize = normalizePageSize(query.pageSize)
   const { data: body } = await httpCommon.get<ApiEnvelope<PageInfoApplication>>(`${BASE}/page`, {
     params: {
-      pageNum: query.pageNum,
-      pageSize: query.pageSize,
+      pageNum,
+      pageSize,
       searchValue: query.searchValue?.trim() || undefined,
       appType: query.appType?.trim() || undefined,
       sortName: query.sortName,

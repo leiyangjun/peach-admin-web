@@ -4,6 +4,7 @@
  */
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { buildPageParams, sliceRowsForPage } from '../utils/pagination'
 import { BTN_UI, CMN_BUTTON, CMN_BUTTON_LABEL } from '../constants/cmnButton'
 import type { ButtonPageQuery, PageInfoButton } from '../api/button'
 import type { ButtonDictVO } from '../models/permission'
@@ -81,12 +82,12 @@ function seedPickedMap() {
 async function loadLeftPage() {
   leftLoading.value = true
   try {
+    const query = buildPageParams(leftPage.value, leftPageSize.value)
     const res = await props.fetchPage({
-      pageNum: leftPage.value,
-      pageSize: leftPageSize.value,
+      ...query,
       searchValue: leftKeyword.value.trim() || undefined,
     })
-    leftRows.value = res.list
+    leftRows.value = sliceRowsForPage(res.list ?? [], query.pageNum, query.pageSize)
     leftTotal.value = res.total
   } catch (e) {
     leftRows.value = []

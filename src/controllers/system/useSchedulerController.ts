@@ -14,6 +14,11 @@ import {
   triggerJobTask,
 } from '../../api/jobTask'
 import { isSessionExpiredError } from '../../utils/sessionExpired'
+import {
+  DEFAULT_PAGE_SIZE,
+  buildPageParams,
+  sliceRowsForPage,
+} from '../../utils/pagination'
 import type { JobLogVO, JobPageQuery, JobTaskVO } from '../../models/jobTask'
 
 /** 是否处于暂停态（与 pauseJob 逻辑删除 / valid 对齐） */
@@ -26,7 +31,7 @@ export function useSchedulerController() {
 
   const keyword = ref('')
   const page = ref(1)
-  const pageSize = ref(10)
+  const pageSize = ref(DEFAULT_PAGE_SIZE)
   const total = ref(0)
   const loading = ref(false)
   const tableRows = ref<JobTaskVO[]>([])
@@ -40,8 +45,7 @@ export function useSchedulerController() {
   const buildPageQuery = (): JobPageQuery => {
     const kw = keyword.value.trim()
     const base: JobPageQuery = {
-      pageNum: page.value,
-      pageSize: pageSize.value,
+      ...buildPageParams(page.value, pageSize.value),
       sortName: 'editTime',
       sortType: 'desc',
     }
@@ -54,8 +58,9 @@ export function useSchedulerController() {
   const loadList = async () => {
     loading.value = true
     try {
+      const pageParams = buildPageParams(page.value, pageSize.value)
       const data = await fetchJobTaskPage(buildPageQuery())
-      tableRows.value = data.list ?? []
+      tableRows.value = sliceRowsForPage(data.list ?? [], pageParams.pageNum, pageParams.pageSize)
       total.value = data.total ?? 0
     } catch (e) {
       if (!isSessionExpiredError(e)) {
