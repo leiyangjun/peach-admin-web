@@ -6,7 +6,7 @@ import { computed } from 'vue'
 import { Plus, QuestionFilled } from '@element-plus/icons-vue'
 import { useMenuOpsController } from '../../controllers/system/useMenuOpsController'
 import { useMenuPanelResize } from '../../composables/useMenuPanelResize'
-import { MENU_ICON_OPTIONS, type MenuIconOption } from '../../constants/menuIconOptions'
+import MenuIconSelect from '../../components/MenuIconSelect.vue'
 import { BTN_UI, CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
 import { useButtonPermission } from '../../composables/useButtonPermission'
 import type { MenuOpsTreeNode } from '../../models/menuOps'
@@ -43,14 +43,6 @@ function menuTreeLabelClass(data: MenuOpsTreeNode): string {
   const visible = v === undefined || v === null || Number(v) === 1
   return visible ? 'tree-node-label tree-node-label--visible' : 'tree-node-label tree-node-label--hidden'
 }
-
-const iconSelectOptions = computed((): MenuIconOption[] => {
-  const v = (formModel.value.icon ?? '').trim()
-  if (v && !MENU_ICON_OPTIONS.some((o) => o.value === v)) {
-    return [{ label: `未在列表: ${v}`, value: v, component: null }, ...MENU_ICON_OPTIONS]
-  }
-  return MENU_ICON_OPTIONS
-})
 
 </script>
 
@@ -219,27 +211,7 @@ const iconSelectOptions = computed((): MenuIconOption[] => {
                   <el-row :gutter="16">
                     <el-col :xs="24" :sm="12">
                       <el-form-item :for="''" label="图标">
-                        <el-select
-                          v-model="formModel.icon"
-                          clearable
-                          filterable
-                          placeholder="侧边栏图标"
-                          class="w-full"
-                        >
-                          <el-option
-                            v-for="opt in iconSelectOptions"
-                            :key="opt.value === '' ? '__none' : opt.value"
-                            :label="opt.label"
-                            :value="opt.value"
-                          >
-                            <span class="icon-option-row">
-                              <el-icon v-if="opt.component" class="icon-option-ic"><component :is="opt.component" /></el-icon>
-                              <span v-else class="icon-option-ic icon-option-empty" />
-                              <span class="icon-option-label">{{ opt.label }}</span>
-                              <span class="icon-option-value">{{ opt.value || '空' }}</span>
-                            </span>
-                          </el-option>
-                        </el-select>
+                        <MenuIconSelect v-model="formModel.icon" />
                       </el-form-item>
                     </el-col>
                   </el-row>
@@ -692,33 +664,5 @@ const iconSelectOptions = computed((): MenuIconOption[] => {
 
 .menu-edit-form--flat :deep(.el-form-item) {
   margin-bottom: 12px;
-}
-
-.icon-option-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-}
-
-.icon-option-ic {
-  flex-shrink: 0;
-  font-size: 16px;
-}
-
-.icon-option-empty {
-  display: inline-block;
-  width: 16px;
-}
-
-.icon-option-label {
-  flex: 1;
-  min-width: 0;
-}
-
-.icon-option-value {
-  flex-shrink: 0;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
 }
 </style>
