@@ -5,6 +5,7 @@
 import { Minus, MoreFilled, Plus, QuestionFilled } from '@element-plus/icons-vue'
 import type { FormInstance } from 'element-plus'
 import ApiResourceShuttleDialog from '../../components/ApiResourceShuttleDialog.vue'
+import HorizontalInputNumber from '../../components/HorizontalInputNumber.vue'
 import VcrontabCronField from '../../components/VcrontabCronField.vue'
 import { useSchedulerEditController } from '../../controllers/system/useSchedulerEditController'
 
@@ -176,14 +177,13 @@ function bindSchedulerForm(el: unknown) {
                 class="form-grid__half"
                 :required="form.retryMax >= 1"
               >
-                <el-input-number
+                <HorizontalInputNumber
                   v-model="form.retryIntervalMs"
+                  prefix="毫秒"
                   :min="form.retryMax >= 1 ? 1 : 0"
                   :max="600000"
                   :step="500"
                   :disabled="form.retryMax === 0"
-                  controls-position="right"
-                  class="w-full"
                   placeholder="毫秒"
                 />
               </el-form-item>
@@ -202,16 +202,15 @@ function bindSchedulerForm(el: unknown) {
                     </el-tooltip>
                   </span>
                 </template>
-                <el-input-number
+                <HorizontalInputNumber
                   v-model="form.timeoutMs"
+                  prefix="毫秒"
                   :min="1000"
                   :max="RETRY_TIMEOUT_MAX_MS"
                   :step="500"
                   :disabled="form.retryMax === 0"
-                  controls-position="right"
-                  class="w-full"
                   placeholder="默认 5000，最大 15000"
-                  @change="clampRetryTimeout"
+                  @update:model-value="clampRetryTimeout"
                 />
               </el-form-item>
 

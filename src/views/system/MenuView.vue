@@ -10,6 +10,7 @@ import { useMenuPermission } from '../../controllers/system/useMenuPermission'
 import DictButtonShuttleDialog from '../../components/DictButtonShuttleDialog.vue'
 import ApiResourceShuttleDialog from '../../components/ApiResourceShuttleDialog.vue'
 import MenuIconSelect from '../../components/MenuIconSelect.vue'
+import HorizontalInputNumber from '../../components/HorizontalInputNumber.vue'
 import { fetchButtonPage } from '../../api/button'
 import { BTN_UI, CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
 import { useButtonPermission } from '../../composables/useButtonPermission'
@@ -30,6 +31,20 @@ function menuTreeLabelClass(data: MenuMgmtVO): string {
   const v = data.valid
   const visible = v === undefined || v === null || Number(v) === 1
   return visible ? 'tree-node-label tree-node-label--visible' : 'tree-node-label tree-node-label--hidden'
+}
+
+/** 树节点类型标签文案：与菜单调整页一致 */
+function menuTypeLabel(type: string | undefined): string {
+  if (type === 'MENU') return '菜单'
+  if (type === 'CATALOG') return '目录'
+  return type ?? ''
+}
+
+/** 树/表单标签主题色：目录与菜单区分 */
+function menuTypeTagType(type: string | undefined): 'primary' | 'success' | 'info' {
+  if (type === 'MENU') return 'success'
+  if (type === 'CATALOG') return 'primary'
+  return 'info'
 }
 
 const {
@@ -169,6 +184,14 @@ watch(
                 <template #default="{ data }">
                   <div class="menu-tree-node">
                     <span :class="menuTreeLabelClass(data)">{{ data.menuName }}</span>
+                    <el-tag
+                      v-if="data.menuType"
+                      size="small"
+                      :type="menuTypeTagType(data.menuType)"
+                      class="type-tag"
+                    >
+                      {{ menuTypeLabel(data.menuType) }}
+                    </el-tag>
                     <el-tooltip v-if="hasButton(CMN_BUTTON.ADD)" :content="`在此节点下${CMN_BUTTON_LABEL[CMN_BUTTON.ADD]}子菜单`" placement="right">
                       <button
                         type="button"
@@ -259,7 +282,7 @@ watch(
                     </el-col>
                     <el-col :xs="24" :sm="12">
                       <el-form-item :for="''" label="排序号">
-                        <el-input-number v-model="formModel.orderNo" :min="0" controls-position="right" class="w-full" />
+                        <HorizontalInputNumber v-model="formModel.orderNo" :min="0" />
                       </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12">
@@ -601,6 +624,11 @@ watch(
   flex: 1;
   min-width: 0;
   gap: 4px;
+}
+
+.type-tag {
+  flex-shrink: 0;
+  margin-left: 2px;
 }
 
 .menu-tree-add-btn {

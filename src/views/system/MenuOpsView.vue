@@ -7,6 +7,7 @@ import { Plus, QuestionFilled } from '@element-plus/icons-vue'
 import { useMenuOpsController } from '../../controllers/system/useMenuOpsController'
 import { useMenuPanelResize } from '../../composables/useMenuPanelResize'
 import MenuIconSelect from '../../components/MenuIconSelect.vue'
+import HorizontalInputNumber from '../../components/HorizontalInputNumber.vue'
 import { BTN_UI, CMN_BUTTON, CMN_BUTTON_LABEL } from '../../constants/cmnButton'
 import { useButtonPermission } from '../../composables/useButtonPermission'
 import type { MenuOpsTreeNode } from '../../models/menuOps'
@@ -163,7 +164,7 @@ function menuTreeLabelClass(data: MenuOpsTreeNode): string {
                     </el-col>
                     <el-col :xs="24" :sm="12">
                       <el-form-item :for="''" label="排序号">
-                        <el-input-number v-model="formModel.orderNo" :min="0" controls-position="right" class="w-full" />
+                        <HorizontalInputNumber v-model="formModel.orderNo" :min="0" />
                       </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12">
