@@ -5,6 +5,25 @@ import { defineStore } from 'pinia'
  * 作者：leiyangjun
  */
 
+/** 侧边栏折叠状态 localStorage 键（刷新后保持） */
+const SIDEBAR_COLLAPSED_STORAGE_KEY = 'peach-admin-sidebar-collapsed'
+
+function readSidebarCollapsed(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+function persistSidebarCollapsed(collapsed: boolean): void {
+  try {
+    localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(collapsed))
+  } catch {
+    // 忽略存储不可用（隐私模式等）
+  }
+}
+
 export interface TabItem {
   path: string
   title: string
@@ -15,12 +34,13 @@ export interface TabItem {
 
 export const useAppStore = defineStore('app', {
   state: () => ({
-    sidebarCollapsed: false,
+    sidebarCollapsed: readSidebarCollapsed(),
     tabs: [{ path: '/dashboard', title: '首页', closable: false, name: 'Dashboard' }] as TabItem[],
   }),
   actions: {
     toggleSidebar() {
       this.sidebarCollapsed = !this.sidebarCollapsed
+      persistSidebarCollapsed(this.sidebarCollapsed)
     },
     addTab(path: string, title: string, name?: string | null) {
       if (!path || path === '/login') {

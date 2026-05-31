@@ -48,6 +48,8 @@ const {
           text-color="rgba(255, 255, 255, 0.9)"
           active-text-color="#ffffff"
           :collapse="appStore.sidebarCollapsed"
+          popper-class="admin-sidebar-menu-popper"
+          popper-effect="dark"
           :router="false"
           unique-opened
           @select="handleMenuSelect"
@@ -247,9 +249,9 @@ const {
   background: transparent;
 }
 
-/** 内联子菜单容器默认白底，在深色侧栏上会呈现大块空白；与侧栏渐变统一为透明 */
-.menu :deep(.el-menu--inline),
-.menu :deep(.el-sub-menu > .el-menu) {
+/** 仅展开态内联子菜单透明；折叠弹出层（.el-menu--popup）勿套用，否则会白底+浅色字不可见 */
+.menu:not(.el-menu--collapse) :deep(.el-menu--inline),
+.menu:not(.el-menu--collapse) :deep(.el-sub-menu > .el-menu) {
   background-color: transparent !important;
   border: none;
   min-height: 0;
@@ -308,20 +310,20 @@ const {
   font-weight: 600;
 }
 
-/** 嵌套层级下的菜单项与顶层一致（紧凑行高；缩进沿用 Element Plus 默认层级 padding） */
-.menu :deep(.el-sub-menu .el-menu-item) {
+/** 嵌套层级下的菜单项与顶层一致（仅侧栏内联，不含 teleport 弹出层） */
+.menu:not(.el-menu--collapse) :deep(.el-sub-menu .el-menu-item) {
   color: rgb(255 255 255 / 88%);
   min-height: 36px;
   height: 36px;
   line-height: 36px;
 }
 
-.menu :deep(.el-sub-menu .el-menu-item:hover) {
+.menu:not(.el-menu--collapse) :deep(.el-sub-menu .el-menu-item:hover) {
   color: #fff;
   background: rgb(255 255 255 / 14%);
 }
 
-.menu :deep(.el-sub-menu .el-menu-item.is-active) {
+.menu:not(.el-menu--collapse) :deep(.el-sub-menu .el-menu-item.is-active) {
   color: #fff;
   background: rgb(255 255 255 / 24%);
   font-weight: 600;

@@ -38,3 +38,51 @@ body {
   --el-message-border-color: var(--el-color-success-light-5);
   --el-message-text-color: var(--el-color-success);
 }
+
+/**
+ * 侧栏折叠时子菜单弹出层（teleport 至 body，须全局类名）。
+ * 与 AdminLayout 深色侧栏一致，避免默认 light popper 白底与 scoped 透明背景冲突。
+ */
+.admin-sidebar-menu-popper.el-popper.is-dark,
+.admin-sidebar-menu-popper.el-menu--popup-container {
+  background: linear-gradient(180deg, #1f3d91 0%, #1b2f70 100%);
+  border: none;
+  border-radius: 8px;
+  padding: 6px 4px;
+  box-shadow: 2px 4px 16px rgb(0 0 0 / 22%);
+}
+
+.admin-sidebar-menu-popper .el-menu--popup {
+  background: transparent;
+  border: none;
+  min-width: 168px;
+  padding: 4px 0;
+  box-shadow: none;
+}
+
+.admin-sidebar-menu-popper .el-menu-item,
+.admin-sidebar-menu-popper .el-sub-menu__title {
+  color: rgb(255 255 255 / 90%);
+  min-height: 36px;
+  height: 36px;
+  line-height: 36px;
+  border-radius: 8px;
+  margin-bottom: 2px;
+}
+
+.admin-sidebar-menu-popper .el-menu-item:hover,
+.admin-sidebar-menu-popper .el-sub-menu__title:hover {
+  color: #fff;
+  background: rgb(255 255 255 / 14%);
+}
+
+.admin-sidebar-menu-popper .el-menu-item.is-active {
+  color: #fff;
+  background: rgb(255 255 255 / 24%);
+  font-weight: 600;
+}
+
+.admin-sidebar-menu-popper .el-sub-menu .el-icon,
+.admin-sidebar-menu-popper .el-sub-menu__icon-arrow {
+  color: inherit;
+}
